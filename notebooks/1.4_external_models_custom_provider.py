@@ -36,6 +36,7 @@
 # COMMAND ----------
 
 import mlflow.deployments
+from loguru import logger
 
 # Get MLflow Deployments client
 client = mlflow.deployments.get_deploy_client("databricks")
@@ -46,11 +47,11 @@ ENDPOINT_NAME = "openai-dalle-custom"
 # Check if endpoint already exists
 try:
     existing = client.get_endpoint(ENDPOINT_NAME)
-    print(f" Endpoint '{ENDPOINT_NAME}' already exists")
-    print(f" Status: {existing}")
+    logger.info(f"Endpoint '{ENDPOINT_NAME}' already exists")
+    logger.info(f"Status: {existing}")
 except Exception:
-    print(f"Creating External Model endpoint: {ENDPOINT_NAME}")
-    
+    logger.info(f"Creating External Model endpoint: {ENDPOINT_NAME}")
+
     # Create External Model endpoint for OpenAI DALL-E
     endpoint = client.create_endpoint(
         name=ENDPOINT_NAME,
@@ -70,9 +71,9 @@ except Exception:
             }]
         }
     )
-    
-    print(f" Endpoint created successfully: {ENDPOINT_NAME}")
-    print(f" Configuration: {endpoint}")
+
+    logger.info(f"Endpoint created successfully: {ENDPOINT_NAME}")
+    logger.info(f"Configuration: {endpoint}")
 
 # COMMAND ----------
 
@@ -104,8 +105,8 @@ client = OpenAI(
 
 ENDPOINT_NAME = "openai-dalle-custom"
 
-print(f" Client configured to use endpoint: {ENDPOINT_NAME}")
-print(f" Base URL: {host}/serving-endpoints")
+logger.info(f"Client configured to use endpoint: {ENDPOINT_NAME}")
+logger.info(f"Base URL: {host}/serving-endpoints")
 
 # COMMAND ----------
 
@@ -127,9 +128,9 @@ response = client.images.generate(
     response_format="b64_json"  # Returns base64-encoded image
 )
 
-print(" Image generated successfully!")
-print(f"   Prompt: {response.data[0].revised_prompt if hasattr(response.data[0], 'revised_prompt') else 'N/A'}")
-print(f"   Response format: b64_json")
+logger.info("Image generated successfully!")
+logger.info(f"Prompt: {response.data[0].revised_prompt if hasattr(response.data[0], 'revised_prompt') else 'N/A'}")
+logger.info("Response format: b64_json")
 
 # COMMAND ----------
 
@@ -148,8 +149,8 @@ display(image)
 
 # Optionally save to file
 # image.save("/dbfs/tmp/generated_image.png")
-print(f"Image size: {image.size}")
-print(f"Image format: {image.format}")
+logger.info(f"Image size: {image.size}")
+logger.info(f"Image format: {image.format}")
 
 # COMMAND ----------
 
@@ -169,6 +170,6 @@ response_url = client.images.generate(
 )
 
 image_url = response_url.data[0].url
-print(f"Image generated!")
-print(f"   Temporary URL (expires in 2 hours):")
-print(f"   {image_url}")
+logger.info("Image generated!")
+logger.info("Temporary URL (expires in 2 hours):")
+logger.info(image_url)

@@ -5,6 +5,8 @@ from pathlib import Path
 
 import yaml
 from pydantic import BaseModel, Field
+from pyspark.dbutils import DBUtils
+from pyspark.sql import SparkSession
 
 
 class ProjectConfig(BaseModel):
@@ -111,10 +113,14 @@ def load_config(config_path: str = "project_config.yml", env: str = "dev") -> Pr
     return ProjectConfig.from_yaml(config_path, env)
 
 
-def get_env() -> str:
-    """Get current environment from environment variable.
-    
+def get_env(spark: SparkSession) -> str:
+    """Get current environment from dbutils widget, falling back to ENV variable or 'dev'.
+
     Returns:
         Environment name (dev, acc, or prd)
     """
-    return os.getenv("ENV", "dev")
+    try:
+        dbutils = DBUtils(spark)
+        return dbutils.widgets.get("env")
+    except Exception:
+        return "dev"

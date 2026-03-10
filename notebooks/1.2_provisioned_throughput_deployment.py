@@ -12,6 +12,7 @@ from databricks.sdk.service.serving import (
     ServedEntityInput
 )
 import time
+from loguru import logger
 from openai import OpenAI
 
 w = WorkspaceClient()
@@ -89,10 +90,10 @@ def endpoint_exists(endpoint_name: str) -> bool:
         return False
 
 if endpoint_exists(ENDPOINT_NAME):
-    print(f"Endpoint '{ENDPOINT_NAME}' already exists")
-    print("To update, delete the existing endpoint first or use a different name")
+    logger.info(f"Endpoint '{ENDPOINT_NAME}' already exists")
+    logger.info("To update, delete the existing endpoint first or use a different name")
 else:
-    print(f"Endpoint '{ENDPOINT_NAME}' does not exist. Ready to create.")
+    logger.info(f"Endpoint '{ENDPOINT_NAME}' does not exist. Ready to create.")
 
 # COMMAND ----------
 
@@ -123,16 +124,16 @@ endpoint_config = EndpointCoreConfigInput(
 )
 
 # Create the endpoint
-print(f"Creating endpoint '{ENDPOINT_NAME}'...")
-print("This will take 15-30 minutes...")
+logger.info(f"Creating endpoint '{ENDPOINT_NAME}'...")
+logger.info("This will take 15-30 minutes...")
 
 w.serving_endpoints.create(
     name=ENDPOINT_NAME,
     config=endpoint_config
 )
 
-print("Endpoint creation initiated!")
-print("Remember: Provisioned throughput incurs costs while running!")
+logger.info("Endpoint creation initiated!")
+logger.info("Remember: Provisioned throughput incurs costs while running!")
 
 # COMMAND ----------
 
@@ -145,42 +146,42 @@ def wait_for_endpoint(endpoint_name: str, timeout_minutes: int = 30):
     """Wait for endpoint to be ready."""
     start_time = time.time()
     timeout_seconds = timeout_minutes * 60
-    
+
     while True:
         try:
             endpoint = w.serving_endpoints.get(endpoint_name)
             config_state = endpoint.state.config_update
             ready_state = endpoint.state.ready
-            
-            print(f"Status: config_update={config_state}, ready={ready_state}")
-            
+
+            logger.info(f"Status: config_update={config_state}, ready={ready_state}")
+
             # Check for failure state
             if hasattr(endpoint.state, 'config_update_message'):
                 msg = endpoint.state.config_update_message
                 if msg:
-                    print(f"Message: {msg}")
-            
+                    logger.info(f"Message: {msg}")
+
             # Endpoint is ready when config is NOT_UPDATING and ready state is READY
             if config_state.value == "NOT_UPDATING" and ready_state.value == "READY":
-                print(f"Endpoint '{endpoint_name}' is ready!")
+                logger.info(f"Endpoint '{endpoint_name}' is ready!")
                 return True
-            
+
             # Check if endpoint creation failed
             if config_state.value == "UPDATE_FAILED":
-                print(f"Endpoint creation failed!")
+                logger.error(f"Endpoint creation failed!")
                 if hasattr(endpoint.state, 'config_update_message'):
-                    print(f"Error: {endpoint.state.config_update_message}")
+                    logger.error(f"Error: {endpoint.state.config_update_message}")
                 return False
-            
+
             if time.time() - start_time > timeout_seconds:
-                print(f"⏱️ Timeout waiting for endpoint")
+                logger.warning("Timeout waiting for endpoint")
                 return False
-            
+
             time.sleep(30)  # Check every 30 seconds
-            
+
         except Exception as e:
-            print(f"Error checking endpoint: {e}")
-            print("Tip: Check the Databricks UI → Machine Learning → Serving for detailed error messages")
+            logger.error(f"Error checking endpoint: {e}")
+            logger.info("Tip: Check the Databricks UI -> Machine Learning -> Serving for detailed error messages")
             return False
 
 # Uncomment to monitor deployment
@@ -210,9 +211,9 @@ response = client.chat.completions.create(
     temperature=0.7
 )
 
-print("Response:")
-print(response.choices[0].message.content)
-print(f"\nTokens used: {response.usage.total_tokens}")
+logger.info("Response:")
+logger.info(response.choices[0].message.content)
+logger.info(f"Tokens used: {response.usage.total_tokens}")
 
 # COMMAND ----------
 
@@ -225,21 +226,21 @@ def get_endpoint_metrics(endpoint_name: str):
     """Get endpoint metrics and status."""
     try:
         endpoint = w.serving_endpoints.get(endpoint_name)
-        
-        print(f"Endpoint: {endpoint_name}")
-        print(f"State: {endpoint.state.config_update}")
-        print(f"\nConfiguration:")
-        
+
+        logger.info(f"Endpoint: {endpoint_name}")
+        logger.info(f"State: {endpoint.state.config_update}")
+        logger.info("Configuration:")
+
         for entity in endpoint.config.served_entities:
-            print(f"  Model: {entity.entity_name}")
-            print(f"  Workload Size: {entity.workload_size}")
-            print(f"  Min Throughput: {entity.min_provisioned_throughput} model units")
-            print(f"  Max Throughput: {entity.max_provisioned_throughput} model units")
-            print(f"  Scale to Zero: {entity.scale_to_zero_enabled}")
-        
+            logger.info(f"  Model: {entity.entity_name}")
+            logger.info(f"  Workload Size: {entity.workload_size}")
+            logger.info(f"  Min Throughput: {entity.min_provisioned_throughput} model units")
+            logger.info(f"  Max Throughput: {entity.max_provisioned_throughput} model units")
+            logger.info(f"  Scale to Zero: {entity.scale_to_zero_enabled}")
+
         return endpoint
     except Exception as e:
-        print(f"Error getting metrics: {e}")
+        logger.error(f"Error getting metrics: {e}")
         return None
 
 get_endpoint_metrics(ENDPOINT_NAME)
@@ -260,24 +261,24 @@ def estimate_provisioned_cost(
     """Estimate cost for provisioned throughput."""
     total_hours = hours_per_day * days
     total_cost = model_units * total_hours * cost_per_unit_hour
-    
-    print(f"Cost Estimation:")
-    print(f"  Model Units: {model_units}")
-    print(f"  Hours per day: {hours_per_day}")
-    print(f"  Days: {days}")
-    print(f"  Total hours: {total_hours}")
-    print(f"  Cost per unit-hour: ${cost_per_unit_hour}")
-    print(f"  Total cost: ${total_cost:.2f}")
-    
+
+    logger.info("Cost Estimation:")
+    logger.info(f"  Model Units: {model_units}")
+    logger.info(f"  Hours per day: {hours_per_day}")
+    logger.info(f"  Days: {days}")
+    logger.info(f"  Total hours: {total_hours}")
+    logger.info(f"  Cost per unit-hour: ${cost_per_unit_hour}")
+    logger.info(f"  Total cost: ${total_cost:.2f}")
+
     # Calculate throughput
     tokens_per_second = model_units * 65
     total_tokens = tokens_per_second * 3600 * total_hours
     cost_per_million_tokens = (total_cost / total_tokens) * 1_000_000
-    
-    print(f"\n  Throughput: {tokens_per_second:,} tokens/second")
-    print(f"  Total tokens: {total_tokens:,}")
-    print(f"  Effective cost: ${cost_per_million_tokens:.2f} per 1M tokens")
-    
+
+    logger.info(f"  Throughput: {tokens_per_second:,} tokens/second")
+    logger.info(f"  Total tokens: {total_tokens:,}")
+    logger.info(f"  Effective cost: ${cost_per_million_tokens:.2f} per 1M tokens")
+
     return total_cost
 
 # Example: 50 model units, 8 hours/day, 30 days
@@ -297,12 +298,12 @@ estimate_provisioned_cost(50, 8, 30)
 def delete_endpoint(endpoint_name: str):
     try:
         w.serving_endpoints.delete(endpoint_name)
-        print(f"✅ Endpoint '{endpoint_name}' deleted successfully")
+        logger.info(f"Endpoint '{endpoint_name}' deleted successfully")
     except Exception as e:
-        print(f"Error deleting endpoint: {e}")
+        logger.error(f"Error deleting endpoint: {e}")
 
 # delete_endpoint(ENDPOINT_NAME)
 """
 
-print("Remember to delete your provisioned endpoint when done!")
-print("Uncomment the code above to delete the endpoint.")
+logger.info("Remember to delete your provisioned endpoint when done!")
+logger.info("Uncomment the code above to delete the endpoint.")
