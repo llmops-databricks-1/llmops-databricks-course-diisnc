@@ -26,16 +26,11 @@
 # MAGIC    - Predictable performance
 # MAGIC    - Better for high-volume workloads
 # MAGIC    - Can be fine-tuned
-# MAGIC    - Example: DeepSeek R1 Distilled Llama (see Lecture 1.2)
 # MAGIC
 # MAGIC 3. **External Models**
 # MAGIC    - OpenAI, Anthropic, Cohere, etc.
 # MAGIC    - Unified interface
 # MAGIC    - Centralized governance
-
-# COMMAND ----------
-
-# MAGIC %restart_python
 
 # COMMAND ----------
 
@@ -49,8 +44,6 @@ w = WorkspaceClient()
 
 # MAGIC %md
 # MAGIC ## 2. Databricks Hosted Models (Foundation Model APIs)
-# MAGIC
-# MAGIC These are serverless, pay-per-token models hosted by Databricks.
 
 # COMMAND ----------
 
@@ -68,7 +61,7 @@ for endpoint in endpoints:
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### Example: Using Meta Llama 3.1 70B Instruct
+# MAGIC ### Example: Using Meta Llama
 
 # COMMAND ----------
 
@@ -184,7 +177,7 @@ print(f"\n💡 Provisioned throughput becomes cost-effective at high, predictabl
 # MAGIC | **Pricing** | Pay-per-token | Pay-per-model-unit-hour | Pay-per-token (external) |
 # MAGIC | **Performance** | Shared capacity | Dedicated capacity | Varies by provider |
 # MAGIC | **Latency** | Variable | Predictable | Variable |
-# MAGIC | **Fine-tuning** | No | Yes (e.g. DeepSeek R1) | Limited |
+# MAGIC | **Fine-tuning** | No | Yes | Limited |
 # MAGIC | **Best For** | Variable workloads | High-volume, predictable | Specific model requirements |
 # MAGIC | **Setup** | Instant | Requires provisioning | Requires credentials |
 

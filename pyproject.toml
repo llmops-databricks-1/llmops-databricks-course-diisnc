@@ -37,12 +37,17 @@ include-package-data = true
 arxiv_curator = ["../../../project_config.yml"]
 
 [project.optional-dependencies]
+notebook = [
+    "jupyterlab>=4.0.0",
+    "ipywidgets>=8.0.0"
+]
+
 dev = [
-    # databricks-connect requires Python 3.12, skipping for Python 3.11 compatibility
-    # "databricks-connect>=17.0, <18",
+    "arxiv-curator[notebook]",
+    "databricks-connect>=17.0, <18",
     "pip>=25.0.1, <26",
     "pre-commit>=4.1.0, <5",
-    "jupyterlab>=4.0.0"
+    "ruff>=0.8.0"
 ]
 
 ci = [

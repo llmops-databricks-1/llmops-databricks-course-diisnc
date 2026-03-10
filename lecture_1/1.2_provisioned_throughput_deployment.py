@@ -1,36 +1,15 @@
 # Databricks notebook source
 # MAGIC %md
 # MAGIC # Lecture 1.2: Provisioned Throughput Deployment
-# MAGIC
-# MAGIC ## Topics Covered:
-# MAGIC - Understanding provisioned throughput
-# MAGIC - When to use provisioned throughput vs Foundation Model APIs
-# MAGIC - Configuration and optimization
-# MAGIC - Monitoring and scaling
-
-# MAGIC **Provisioned Throughput** is for:
 # MAGIC - Your own fine-tuned models
 # MAGIC - Custom models registered in Unity Catalog
 # MAGIC - Models that need dedicated capacity
-
-# COMMAND ----------
-
-# MAGIC %pip install databricks-sdk openai
-
-# COMMAND ----------
-
-# MAGIC %restart_python
-
 # COMMAND ----------
 
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.serving import (
     EndpointCoreConfigInput,
-    ServedEntityInput,
-    ServedEntitySpec,
-    EndpointStateReady,
-    TrafficConfig,
-    Route
+    ServedEntityInput
 )
 import time
 from openai import OpenAI
@@ -49,13 +28,6 @@ w = WorkspaceClient()
 # MAGIC - **Example**: For DeepSeek/Llama models:
 # MAGIC   - 1 model unit ≈ 65 tokens/second
 # MAGIC   - 50 model units ≈ 3,250 tokens/second
-# MAGIC
-# MAGIC ### When to Use Provisioned Throughput
-# MAGIC
-# MAGIC 1. High-volume production workloads
-# MAGIC 2. Latency-sensitive applications
-# MAGIC 3. Cost optimization for predictable loads
-# MAGIC 4. Fine-tuned model deployment
 
 # COMMAND ----------
 
@@ -81,22 +53,16 @@ w = WorkspaceClient()
 # MAGIC #### Safety & Compliance:
 # MAGIC - **guardrails**: Configure input/output validation and filtering
 # MAGIC   - PII detection and redaction
-# MAGIC   - Content filtering (toxicity, hate speech, etc.)
-# MAGIC   - Custom validation rules
 # MAGIC
 # MAGIC #### Environment Variables:
 # MAGIC - **environment_vars**: Pass custom environment variables to the model
 # MAGIC   - API keys for external services
-# MAGIC   - Feature flags
 # MAGIC   - Custom configuration
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 3. Deploying DeepSeek R1 with Provisioned Throughput
-# MAGIC
-# MAGIC **Note**: This example shows how to deploy DeepSeek R1. 
-# MAGIC You can adapt this for other models like Llama 3.1, Mistral, etc.
+# MAGIC ## 3. Deploying LLama with Provisioned Throughput
 
 # COMMAND ----------
 
@@ -196,12 +162,12 @@ def wait_for_endpoint(endpoint_name: str, timeout_minutes: int = 30):
             
             # Endpoint is ready when config is NOT_UPDATING and ready state is READY
             if config_state.value == "NOT_UPDATING" and ready_state.value == "READY":
-                print(f"✅ Endpoint '{endpoint_name}' is ready!")
+                print(f"Endpoint '{endpoint_name}' is ready!")
                 return True
             
             # Check if endpoint creation failed
             if config_state.value == "UPDATE_FAILED":
-                print(f"❌ Endpoint creation failed!")
+                print(f"Endpoint creation failed!")
                 if hasattr(endpoint.state, 'config_update_message'):
                     print(f"Error: {endpoint.state.config_update_message}")
                 return False
@@ -213,7 +179,7 @@ def wait_for_endpoint(endpoint_name: str, timeout_minutes: int = 30):
             time.sleep(30)  # Check every 30 seconds
             
         except Exception as e:
-            print(f"❌ Error checking endpoint: {e}")
+            print(f"Error checking endpoint: {e}")
             print("Tip: Check the Databricks UI → Machine Learning → Serving for detailed error messages")
             return False
 
@@ -320,45 +286,7 @@ estimate_provisioned_cost(50, 8, 30)
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 6. Scaling Configuration
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ### Auto-scaling
-# MAGIC
-# MAGIC Provisioned throughput supports auto-scaling between min and max model units:
-# MAGIC
-# MAGIC - **Min Provisioned Throughput**: Always-on capacity
-# MAGIC - **Max Provisioned Throughput**: Maximum capacity for burst traffic
-# MAGIC - **Scaling Trigger**: Based on request queue depth and latency
-# MAGIC
-# MAGIC ### Example Scaling Scenarios:
-# MAGIC
-# MAGIC 1. **Steady Load**: Min=50, Max=50 (no auto-scaling)
-# MAGIC 2. **Variable Load**: Min=20, Max=100 (scales based on demand)
-# MAGIC 3. **Cost Optimization**: Min=10, Max=200 (low baseline, high burst)
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## 7. Fine-tuning with Provisioned Throughput
-# MAGIC
-# MAGIC Provisioned throughput endpoints can serve fine-tuned models:
-# MAGIC
-# MAGIC 1. Fine-tune your model using Databricks or Hugging Face
-# MAGIC 2. Register the fine-tuned model in Unity Catalog
-# MAGIC 3. Deploy with provisioned throughput
-# MAGIC 4. Benefit from both customization and performance
-# MAGIC
-# MAGIC **Resources:**
-# MAGIC - [Fine-tuning Guide](https://docs.databricks.com/machine-learning/train-model/huggingface/fine-tune-model.html)
-# MAGIC - [DeepSeek R1 Deployment Guide](https://medium.com/@apukumargiri1/deploying-deepseek-r1-on-databricks-a-comprehensive-guide-095a8000ae94)
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## 8. Cleanup
+# MAGIC ## 6. Cleanup
 # MAGIC
 # MAGIC **Important**: Delete the endpoint when not in use to avoid charges!
 
@@ -376,20 +304,5 @@ def delete_endpoint(endpoint_name: str):
 # delete_endpoint(ENDPOINT_NAME)
 """
 
-print("⚠️ Remember to delete your provisioned endpoint when done!")
+print("Remember to delete your provisioned endpoint when done!")
 print("Uncomment the code above to delete the endpoint.")
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## Summary
-# MAGIC
-# MAGIC In this notebook, we learned:
-# MAGIC
-# MAGIC 1. ✅ How provisioned throughput works
-# MAGIC 2. ✅ How to deploy models with provisioned throughput
-# MAGIC 3. ✅ Cost estimation and optimization
-# MAGIC 4. ✅ Performance monitoring
-# MAGIC 5. ✅ Scaling configuration
-# MAGIC 6. ✅ Fine-tuning capabilities
-# MAGIC

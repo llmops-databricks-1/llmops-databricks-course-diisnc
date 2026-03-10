@@ -32,8 +32,6 @@
 
 # MAGIC %md
 # MAGIC ## Create External Model Endpoint with Custom Provider
-# MAGIC
-# MAGIC The endpoint will use the secret stored at: `llmops_course/openai_key`
 
 # COMMAND ----------
 
@@ -48,13 +46,12 @@ ENDPOINT_NAME = "openai-dalle-custom"
 # Check if endpoint already exists
 try:
     existing = client.get_endpoint(ENDPOINT_NAME)
-    print(f"⚠️  Endpoint '{ENDPOINT_NAME}' already exists")
-    print(f"   Status: {existing}")
+    print(f" Endpoint '{ENDPOINT_NAME}' already exists")
+    print(f" Status: {existing}")
 except Exception:
     print(f"Creating External Model endpoint: {ENDPOINT_NAME}")
     
     # Create External Model endpoint for OpenAI DALL-E
-    # Using Custom Provider configuration for image generation
     endpoint = client.create_endpoint(
         name=ENDPOINT_NAME,
         config={
@@ -74,8 +71,8 @@ except Exception:
         }
     )
     
-    print(f"✅ Endpoint created successfully: {ENDPOINT_NAME}")
-    print(f"   Configuration: {endpoint}")
+    print(f" Endpoint created successfully: {ENDPOINT_NAME}")
+    print(f" Configuration: {endpoint}")
 
 # COMMAND ----------
 
@@ -105,11 +102,10 @@ client = OpenAI(
     base_url=f"{host.rstrip('/')}/serving-endpoints"
 )
 
-# IMPORTANT: Replace with your actual endpoint name
-ENDPOINT_NAME = "openai-dalle-custom"  # Update this!
+ENDPOINT_NAME = "openai-dalle-custom"
 
-print(f"✅ Client configured to use endpoint: {ENDPOINT_NAME}")
-print(f"   Base URL: {host}/serving-endpoints")
+print(f" Client configured to use endpoint: {ENDPOINT_NAME}")
+print(f" Base URL: {host}/serving-endpoints")
 
 # COMMAND ----------
 
@@ -131,7 +127,7 @@ response = client.images.generate(
     response_format="b64_json"  # Returns base64-encoded image
 )
 
-print("✅ Image generated successfully!")
+print(" Image generated successfully!")
 print(f"   Prompt: {response.data[0].revised_prompt if hasattr(response.data[0], 'revised_prompt') else 'N/A'}")
 print(f"   Response format: b64_json")
 
@@ -173,8 +169,6 @@ response_url = client.images.generate(
 )
 
 image_url = response_url.data[0].url
-print(f"✅ Image generated!")
+print(f"Image generated!")
 print(f"   Temporary URL (expires in 2 hours):")
 print(f"   {image_url}")
-print("")
-print("⚠️  Note: URL will expire. Download or regenerate as needed.")
