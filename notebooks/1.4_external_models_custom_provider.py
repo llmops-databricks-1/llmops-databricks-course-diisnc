@@ -170,12 +170,7 @@ response_url = client.images.generate(
 )
 
 image_url = response_url.data[0].url
-<<<<<<< HEAD:notebooks/1.4_external_models_custom_provider.py
+
 logger.info("Image generated!")
 logger.info("Temporary URL (expires in 2 hours):")
 logger.info(image_url)
-=======
-print(f"  Image generated!")
-print(f"   Temporary URL (expires in 2 hours):")
-print(f"   {image_url}")
->>>>>>> main:lecture_1/1.4_external_models_custom_provider.py
