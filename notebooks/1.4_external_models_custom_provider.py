@@ -121,7 +121,7 @@ logger.info(f"Base URL: {host}/serving-endpoints")
 # Generate image with base64 response
 response = client.images.generate(
     model=ENDPOINT_NAME,
-    prompt="Two bluejays at a bird feeder in a sunny garden",
+    prompt="Two cats wearing superhero capes in a sunny garden",
     n=1,  # Number of images to generate
     style="vivid",  # Options: "vivid" or "natural"
     quality="standard",  # Options: "standard" or "hd"
@@ -170,7 +170,6 @@ response_url = client.images.generate(
 )
 
 image_url = response_url.data[0].url
-
 logger.info("Image generated!")
 logger.info("Temporary URL (expires in 2 hours):")
 logger.info(image_url)
