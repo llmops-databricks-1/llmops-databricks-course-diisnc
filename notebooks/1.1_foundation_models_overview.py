@@ -165,14 +165,7 @@ logger.info("Provisioned throughput becomes cost-effective at high, predictable 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 4. External Models
-# MAGIC
-# MAGIC Databricks allows you to integrate external model providers through a unified interface.
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## 5. Key Differences Summary
+# MAGIC ## 4. Key Differences Summary
 # MAGIC
 # MAGIC | Aspect | Foundation APIs | Provisioned Throughput | External Models |
 # MAGIC |--------|----------------|------------------------|-----------------|
@@ -186,7 +179,7 @@ logger.info("Provisioned throughput becomes cost-effective at high, predictable 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 6. Choosing the Right Option
+# MAGIC ## 5. Choosing the Right Option
 # MAGIC
 # MAGIC **Use Foundation Model APIs when:**
 # MAGIC - You have variable or unpredictable workloads
