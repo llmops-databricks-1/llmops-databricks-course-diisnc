@@ -38,7 +38,7 @@ from arxiv_curator.vector_search import VectorSearchManager
 spark = SparkSession.builder.getOrCreate()
 
 # Load configuration
-env = get_env()
+env = get_env(spark)
 cfg = load_config("../project_config.yml", env)
 catalog = cfg.catalog
 schema = cfg.schema

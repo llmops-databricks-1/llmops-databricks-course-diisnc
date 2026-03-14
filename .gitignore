@@ -162,4 +162,3 @@ secrets.yml
 credentials.json
 .databrickscfg
 
-*.whl

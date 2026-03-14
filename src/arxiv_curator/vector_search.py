@@ -37,10 +37,10 @@ class VectorSearchManager:
     def create_endpoint_if_not_exists(self) -> None:
         """Create vector search endpoint if it doesn't exist."""
         endpoints_response = self.client.list_endpoints()
-        endpoints = endpoints_response.get('endpoints', []) if isinstance(endpoints_response, dict) else endpoints_response
+        endpoints = endpoints_response.get("endpoints", []) if isinstance(endpoints_response, dict) else []
         endpoint_exists = any(
-            item.get('name') == self.endpoint_name if isinstance(item, dict) else item.name == self.endpoint_name
-            for item in endpoints
+            (ep.get("name") if isinstance(ep, dict) else getattr(ep, "name", None)) == self.endpoint_name
+            for ep in endpoints
         )
 
         if not endpoint_exists:
@@ -59,18 +59,18 @@ class VectorSearchManager:
             Vector search index object
         """
         self.create_endpoint_if_not_exists()
+        source_table = f"{self.catalog}.{self.schema}.arxiv_chunks_table"
 
-        indexes_response = self.client.list_indexes(self.endpoint_name)
-        indexes = indexes_response.get('vector_indexes', []) if isinstance(indexes_response, dict) else indexes_response
-        index_exists = any(
-            item.get('name') == self.index_name if isinstance(item, dict) else item.name == self.index_name
-            for item in indexes
-        )
+        # Try to get existing index
+        try:
+            index = self.client.get_index(index_name=self.index_name)
+            logger.info(f"✓ Vector search index exists: {self.index_name}")
+            return index
+        except Exception:
+            logger.info(f"Index {self.index_name} not found, will create it")
 
-        if not index_exists:
-            logger.info(f"Creating vector search index: {self.index_name}")
-            source_table = f"{self.catalog}.{self.schema}.arxiv_chunks"
-
+        # Try to create the index
+        try:
             index = self.client.create_delta_sync_index(
                 endpoint_name=self.endpoint_name,
                 source_table_name=source_table,
@@ -81,11 +81,13 @@ class VectorSearchManager:
                 embedding_model_endpoint_name=self.embedding_model,
             )
             logger.info(f"✓ Vector search index created: {self.index_name}")
-        else:
+            return index
+        except Exception as e:
+            if "RESOURCE_ALREADY_EXISTS" not in str(e):
+                raise
+            # Index exists but get_index failed earlier (transient) — retry
             logger.info(f"✓ Vector search index exists: {self.index_name}")
-            index = self.client.get_index(index_name=self.index_name)
-
-        return index
+            return self.client.get_index(index_name=self.index_name)
 
     def sync_index(self) -> None:
         """Sync the vector search index with the source table."""

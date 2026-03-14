@@ -19,6 +19,6 @@ resources:
         - task_key: preprocessing
           environment_key: default
           notebook_task:
-            notebook_path: deployment_notebooks/process_data.py
+            notebook_path: deployment_scripts/process_data.py
             base_parameters:
               env: ${bundle.target}
