@@ -17,6 +17,7 @@ class VectorSearchManager:
         config: ProjectConfig,
         endpoint_name: str | None = None,
         embedding_model: str | None = None,
+        usage_policy_id: str | None = None,
     ) -> None:
         """Initialize VectorSearchManager.
 
@@ -30,6 +31,7 @@ class VectorSearchManager:
         self.embedding_model = embedding_model or config.embedding_endpoint
         self.catalog = config.catalog
         self.schema = config.schema
+        self.usage_policy_id = usage_policy_id
 
         self.client = VectorSearchClient()
         self.index_name = f"{self.catalog}.{self.schema}.arxiv_index"
@@ -46,7 +48,8 @@ class VectorSearchManager:
         if not endpoint_exists:
             logger.info(f"Creating vector search endpoint: {self.endpoint_name}")
             self.client.create_endpoint_and_wait(
-                name=self.endpoint_name, endpoint_type="STANDARD"
+                name=self.endpoint_name, endpoint_type="STANDARD",
+                usage_policy_id=self.usage_policy_id
             )
             logger.info(f"✓ Vector search endpoint created: {self.endpoint_name}")
         else:
@@ -79,6 +82,7 @@ class VectorSearchManager:
                 primary_key="id",
                 embedding_source_column="text",
                 embedding_model_endpoint_name=self.embedding_model,
+                usage_policy_id=self.usage_policy_id
             )
             logger.info(f"✓ Vector search index created: {self.index_name}")
             return index

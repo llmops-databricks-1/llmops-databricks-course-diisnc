@@ -12,19 +12,6 @@
 
 # COMMAND ----------
 
-# MAGIC %md
-# MAGIC ### Install Custom Package
-
-# COMMAND ----------
-
-# MAGIC %pip install ../arxiv_curator-0.1.0-py3-none-any.whl databricks-vector-search
-
-# COMMAND ----------
-
-# MAGIC %restart_python
-
-# COMMAND ----------
-
 from loguru import logger
 from pyspark.sql import SparkSession
 from databricks.vector_search.client import VectorSearchClient
