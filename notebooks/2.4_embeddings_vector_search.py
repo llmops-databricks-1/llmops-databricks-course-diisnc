@@ -209,7 +209,29 @@ def parse_vector_search_results(results):
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 7. Basic Similarity Search
+# MAGIC ## 7. Semantic Search with Similarity
+# MAGIC
+# MAGIC ### How Semantic Search Works
+# MAGIC
+# MAGIC 1. **Query Embedding**: Convert your search query to a vector
+# MAGIC 2. **Similarity Calculation**: Compare query vector to all document vectors using **cosine similarity**
+# MAGIC 3. **Ranking**: Return documents with highest similarity scores
+# MAGIC
+# MAGIC ### Cosine Similarity
+# MAGIC
+# MAGIC Measures the angle between two vectors (range: -1 to 1):
+# MAGIC - **1.0**: Identical meaning
+# MAGIC - **0.8-0.9**: Very similar
+# MAGIC - **0.5-0.7**: Somewhat related
+# MAGIC - **< 0.5**: Less relevant
+# MAGIC
+# MAGIC ```
+# MAGIC Query: "machine learning techniques"
+# MAGIC   ↓ (Embedding)
+# MAGIC Vector: [0.2, 0.5, -0.1, ...]
+# MAGIC   ↓ (Cosine similarity with all docs)
+# MAGIC Results ranked by similarity score
+# MAGIC ```
 
 # COMMAND ----------
 
@@ -218,7 +240,7 @@ query = "What are the latest techniques in machine learning?"
 
 results = index.similarity_search(
     query_text=query,
-    columns=["text", "id", "title", "paper_id"],
+    columns=["text", "id", "title", "arxiv_id"],
     num_results=5
 )
 
@@ -229,7 +251,7 @@ logger.info("=" * 80)
 # Parse results using helper function
 for i, row in enumerate(parse_vector_search_results(results), 1):
     logger.info(f"\n{i}. Paper: {row.get('title', 'N/A')}")
-    logger.info(f"   Paper ID: {row.get('paper_id', 'N/A')}")
+    logger.info(f"   arXiv ID: {row.get('arxiv_id', 'N/A')}")
     logger.info(f"   Chunk ID: {row.get('id', 'N/A')}")
     logger.info(f"   Text preview: {row.get('text', '')[:200]}...")
     logger.info(f"   Score: {row.get('score', 'N/A'):.4f}")
@@ -283,13 +305,36 @@ for i, row in enumerate(parse_vector_search_results(results), 1):
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 8. Hybrid Search
+# MAGIC ## 8. Hybrid Search: Semantic + Keyword
+# MAGIC
+# MAGIC ### Why Hybrid Search?
+# MAGIC
+# MAGIC **Semantic search alone** may miss:
+# MAGIC - Exact technical terms (e.g., "GPT-4" vs "language model")
+# MAGIC - Acronyms and abbreviations
+# MAGIC - Specific product names or codes
 # MAGIC
 # MAGIC **Hybrid search** combines:
-# MAGIC - **Semantic search** (embeddings)
-# MAGIC - **Keyword search** (BM25/full-text)
+# MAGIC - **Semantic search** (embeddings) → Captures meaning, synonyms
+# MAGIC - **Keyword search** (BM25) → Exact term matching, TF-IDF scoring
 # MAGIC
-# MAGIC This gives better results by capturing both semantic meaning and exact keyword matches.
+# MAGIC ### How It Works
+# MAGIC
+# MAGIC 1. Run both searches in parallel
+# MAGIC 2. Get top-k results from each
+# MAGIC 3. **Fusion**: Merge and rerank using:
+# MAGIC    - Reciprocal Rank Fusion (RRF)
+# MAGIC    - Weighted score combination
+# MAGIC 4. Return final top-k
+# MAGIC
+# MAGIC ### BM25 (Best Match 25)
+# MAGIC
+# MAGIC Keyword scoring algorithm that considers:
+# MAGIC - **Term frequency**: How often does the term appear?
+# MAGIC - **Document length**: Normalize by doc length
+# MAGIC - **Inverse document frequency**: Rare terms = higher weight
+# MAGIC
+# MAGIC **Result**: Better precision on technical queries with specific terminology.
 
 # COMMAND ----------
 
@@ -315,14 +360,39 @@ for i, row in enumerate(parse_vector_search_results(results), 1):
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 9. Reranking
+# MAGIC ## 9. Reranking for Higher Precision
 # MAGIC
-# MAGIC **Reranking** improves search quality by:
-# MAGIC 1. Retrieving more candidates (e.g., top 20)
-# MAGIC 2. Using a more sophisticated model to rerank them
-# MAGIC 3. Returning the top-k after reranking
+# MAGIC ### The Two-Stage Retrieval Pattern
 # MAGIC
-# MAGIC This is slower but more accurate.
+# MAGIC **Stage 1: Fast Retrieval** (Bi-encoder)
+# MAGIC - Retrieve top 20-50 candidates quickly
+# MAGIC - Uses pre-computed embeddings
+# MAGIC - Fast but less accurate
+# MAGIC
+# MAGIC **Stage 2: Precise Reranking** (Cross-encoder)
+# MAGIC - Score each candidate against the query
+# MAGIC - More accurate relevance scoring
+# MAGIC - Slower, but only runs on candidates
+# MAGIC
+# MAGIC ### Bi-encoder vs Cross-encoder
+# MAGIC
+# MAGIC | Aspect | Bi-encoder | Cross-encoder |
+# MAGIC |--------|-----------|---------------|
+# MAGIC | **Speed** | Very fast | Slower |
+# MAGIC | **Accuracy** | Good | Excellent |
+# MAGIC | **Use case** | Initial retrieval | Reranking |
+# MAGIC | **How it works** | Separate query & doc embeddings | Joint query-doc encoding |
+# MAGIC
+# MAGIC ### When to Use Reranking
+# MAGIC
+# MAGIC - **High-stakes queries**: Customer support, legal, medical
+# MAGIC - **Complex queries**: Multi-faceted questions
+# MAGIC - **When precision matters more than speed**
+# MAGIC
+# MAGIC ### Trade-offs
+# MAGIC
+# MAGIC - **Pros**: 10-30% improvement in relevance
+# MAGIC - **Cons**: 2-5x slower, higher compute cost
 
 # COMMAND ----------
 
@@ -334,7 +404,7 @@ results = index.similarity_search(
     columns=["text", "id", "title", "summary"],
     num_results=5,
     query_type="hybrid",
-    reranker=DatabricksReranker( #not enabled
+    reranker=DatabricksReranker(
         columns_to_rerank=["text", "title", "summary"]
     )
 )

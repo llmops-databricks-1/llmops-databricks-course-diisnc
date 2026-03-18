@@ -1,3 +1,15 @@
+"""
+arXiv API
+   ↓ (download_and_store_papers)
+PDFs in Volume + arxiv_papers table
+   ↓ (parse_pdfs_with_ai)
+ai_parsed_docs_table (JSON)
+   ↓ (process_chunks)
+arxiv_chunks_table (clean text + metadata)
+   ↓ (VectorSearchManager - separate class) (2.4 notebook)
+Vector Search Index (embeddings)
+"""
+
 import json
 import os
 import re

@@ -223,39 +223,6 @@ logger.info(f"\nFirst chunk preview:")
 logger.info(sentence_chunks[0][:200] + "...")
 
 # COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## 6. Comparing Chunking Strategies
-# MAGIC
-# MAGIC Let's compare the different approaches:
-
-# COMMAND ----------
-
-comparison_data = {
-    "Strategy": ["AI Parse (Databricks)", "Fixed-Size", "Sentence-Based"],
-    "Pros": [
-        "Intelligent structure detection, preserves tables",
-        "Simple, predictable size",
-        "Preserves semantic units"
-    ],
-    "Cons": [
-        "Requires Databricks AI Parse",
-        "May break sentences",
-        "Variable chunk sizes"
-    ],
-    "Best For": [
-        "Complex documents with tables/figures",
-        "Simple text, strict size requirements",
-        "Natural language text"
-    ]
-}
-
-import pandas as pd
-comparison_df = pd.DataFrame(comparison_data)
-logger.info(comparison_df.to_string(index=False))
-
-# COMMAND ----------
-
 # MAGIC %md
 # MAGIC ## 7. Chunk Size Recommendations
 # MAGIC

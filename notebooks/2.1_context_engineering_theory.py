@@ -100,29 +100,46 @@ logger.info(f"Approximate words: {available_for_context * 0.75:,.0f}")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 4. Context Engineering Strategies
+# MAGIC ## 4. Retrieval Strategies Overview
 # MAGIC
-# MAGIC ### Strategy 1: Semantic Search
+# MAGIC ### Three Main Approaches
 # MAGIC
-# MAGIC - Convert documents to embeddings
-# MAGIC - Store in vector database
-# MAGIC - Retrieve most similar documents to query
-# MAGIC - **Pros**: Fast, scalable, semantically relevant
+# MAGIC **1. Semantic Search (Vector Search)**
+# MAGIC - Convert documents to embeddings (numerical vectors)
+# MAGIC - Find documents with similar vector representations
+# MAGIC - **Pros**: Captures meaning, handles synonyms, cross-lingual
 # MAGIC - **Cons**: May miss exact keyword matches
+# MAGIC
+# MAGIC **2. Hybrid Search**
+# MAGIC - Combines semantic search (embeddings) + keyword search (BM25)
+# MAGIC - Merges results using fusion algorithms
+# MAGIC - **Pros**: Best of both worlds - meaning + exact matches
+# MAGIC - **Cons**: More complex, slightly slower
+# MAGIC
+# MAGIC **3. Reranking**
+# MAGIC - Retrieve more candidates (e.g., top 20-50)
+# MAGIC - Use a cross-encoder model to rerank
+# MAGIC - Return top-k after reranking
+# MAGIC - **Pros**: Higher precision
+# MAGIC - **Cons**: Additional computation cost
+# MAGIC
+# MAGIC **Note**: We'll implement these with actual code in **Notebook 2.4**.
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### Strategy 2: Hybrid Search
+# MAGIC ### Query Enhancement Technique: Query Rewriting
 # MAGIC
-# MAGIC - Combine semantic search with keyword search
-# MAGIC - Use both embeddings and BM25/TF-IDF
-# MAGIC - Merge and rank results
-# MAGIC - **Pros**: Best of both worlds
-# MAGIC - **Cons**: More complex, slower
+# MAGIC Before retrieval, enhance the query by generating variations:
+# MAGIC - Use different terminology
+# MAGIC - Make it more specific or general
+# MAGIC - Focus on different aspects
+# MAGIC
+# MAGIC This improves recall by searching with multiple phrasings.
 
 # COMMAND ----------
-# Example: Query rewriting
+
+# Example: Query rewriting for better retrieval
 from openai import OpenAI
 from databricks.sdk import WorkspaceClient
 
@@ -234,10 +251,16 @@ for i, chunk in enumerate(ordered, 1):
 
 # COMMAND ----------
 
-
-# COMMAND ----------
-
 # MAGIC %md
+# MAGIC ## 6. Context Compression Techniques
+# MAGIC
+# MAGIC When context is too large for the window, compress it:
+# MAGIC
+# MAGIC ### Technique 1: Extractive Summarization
+# MAGIC - Select most important sentences/chunks
+# MAGIC - Fast, preserves original wording
+# MAGIC - Simple scoring: TF-IDF, position, length
+# MAGIC
 # MAGIC ### Technique 2: Abstractive Summarization
 # MAGIC - Use LLM to generate summaries
 # MAGIC - More concise and coherent
@@ -283,12 +306,14 @@ logger.info(f"\nSummary:\n{summary}")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### Technique 3: Reranking
-# MAGIC - Retrieve more documents than needed
-# MAGIC - Use a reranking model to score relevance
-# MAGIC - Keep only top-k most relevant
-# MAGIC - **Pros**: Better precision
-# MAGIC - **Cons**: Additional computation
+# MAGIC ### Technique 3: Chunk Selection & Filtering
+# MAGIC - Retrieve more chunks than needed
+# MAGIC - Filter by relevance threshold
+# MAGIC - Remove duplicates or near-duplicates
+# MAGIC - **Pros**: Reduces noise
+# MAGIC - **Cons**: May filter out useful context
+# MAGIC
+# MAGIC **Note**: For reranking with cross-encoder models, see **Notebook 2.4**.
 
 # COMMAND ----------
 
