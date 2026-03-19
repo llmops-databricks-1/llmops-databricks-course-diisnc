@@ -124,7 +124,9 @@ logger.info(f"Output tokens: {response.usage.completion_tokens}")
 # MAGIC | Llama 3.2 3B | 46.429 | 92.857 |
 # MAGIC | Llama 3.2 1B | 42.857 | 85.714 |
 # MAGIC
-# MAGIC **Note**: DBU pricing varies by region and contract. Check [Databricks Pricing](https://www.databricks.com/product/pricing) for current rates.
+# MAGIC **Note**: DBU pricing varies by region and contract.
+# MAGIC Check [Databricks Pricing](https://www.databricks.com/product/pricing)
+# MAGIC for current rates.
 # MAGIC
 # MAGIC ### Cost Calculation Example
 
@@ -166,16 +168,15 @@ logger.info(f"For {input_tokens + output_tokens:,} tokens in 24h:")
 logger.info(f"API cost (Llama 3.3 70B): {api_cost_equivalent:.2f} DBUs")
 logger.info(f"Provisioned cost (Llama 3.2 1B): {provisioned_cost:.2f} DBUs")
 logger.info(f"Difference: {api_cost_equivalent - provisioned_cost:.2f} DBUs")
-logger.info(
-    "Provisioned throughput becomes cost-effective at high, predictable volumes"
-)
+logger.info("Provisioned throughput becomes cost-effective at high,predictable volumes")
 
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC ## 4. External Models
 # MAGIC
-# MAGIC Databricks allows you to integrate external model providers through a unified interface.
+# MAGIC Databricks allows you to integrate external model providers through a
+# MAGIC unified interface.
 
 # COMMAND ----------
 
@@ -184,11 +185,11 @@ logger.info(
 # MAGIC
 # MAGIC | Aspect | Foundation APIs | Provisioned Throughput | External Models |
 # MAGIC |--------|----------------|------------------------|-----------------|
-# MAGIC | **Pricing** | Pay-per-token | Pay-per-model-unit-hour | Pay-per-token (external) |
+# MAGIC | **Pricing** | Pay-per-token | Pay-per-model-unit-hour | Pay-per-token (ext.)|
 # MAGIC | **Performance** | Shared capacity | Dedicated capacity | Varies by provider |
 # MAGIC | **Latency** | Variable | Predictable | Variable |
 # MAGIC | **Fine-tuning** | No | Yes | Limited |
-# MAGIC | **Best For** | Variable workloads | High-volume, predictable | Specific model requirements |
+# MAGIC | **Best For** |Variable workload|High-vol., predictable|Specific model reqs.|
 # MAGIC | **Setup** | Instant | Requires provisioning | Requires credentials |
 
 # COMMAND ----------
@@ -212,3 +213,5 @@ logger.info(
 # MAGIC - You need specific models not available on Databricks
 # MAGIC - You have existing contracts with providers
 # MAGIC - You need specific model capabilities
+
+# COMMAND ----------

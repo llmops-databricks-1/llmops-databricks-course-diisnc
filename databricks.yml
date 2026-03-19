@@ -34,7 +34,7 @@ targets:
       root_path: /Workspace/Users/dianasofia.costa@sapo.pt/.bundle/${bundle.name}/${bundle.target}
 
 
-# Databricks Asset Bundle configuration for LLMOps Course 
+# Databricks Asset Bundle configuration for LLMOps Course
 # See https://docs.databricks.com/dev-tools/bundles/index.html for documentation
 
 # bundle:

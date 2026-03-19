@@ -17,7 +17,8 @@
 # MAGIC ```python
 # MAGIC from databricks.sdk import WorkspaceClient
 # MAGIC w = WorkspaceClient()
-# MAGIC openai_api_key = w.secrets.get_secret(scope="llmops_course", key="openai_key").value
+# MAGIC openai_api_key = w.secrets
+# MAGIC                   .get_secret(scope="llmops_course", key="openai_key").value
 # MAGIC ```
 # MAGIC
 # MAGIC **Using dbutils** (Databricks notebooks only):
@@ -35,9 +36,15 @@
 
 # COMMAND ----------
 
+import base64
 import os
+from io import BytesIO
+
 import mlflow.deployments
+from databricks.sdk import WorkspaceClient
 from loguru import logger
+from openai import OpenAI
+from PIL import Image
 
 # Set up MLflow for Databricks
 os.environ["MLFLOW_TRACKING_URI"] = "databricks"
@@ -91,13 +98,6 @@ except Exception:
 
 # COMMAND ----------
 
-from databricks.sdk import WorkspaceClient
-from openai import OpenAI
-import base64
-from io import BytesIO
-from PIL import Image
-import json
-
 w = WorkspaceClient()
 
 # Authenticate using Databricks SDK
@@ -135,7 +135,11 @@ response = client.images.generate(
 
 logger.info("Image generated successfully!")
 logger.info(
-    f"Prompt: {response.data[0].revised_prompt if hasattr(response.data[0], 'revised_prompt') else 'N/A'}"
+    f"Prompt: {
+        response.data[0].revised_prompt
+        if hasattr(response.data[0], 'revised_prompt')
+        else 'N/A'
+    }"
 )
 logger.info("Response format: b64_json")
 
@@ -152,7 +156,7 @@ image_bytes = base64.b64decode(image_data)
 image = Image.open(BytesIO(image_bytes))
 
 # Display in notebook
-display(image)
+display(image)  # noqa: F821
 
 # Optionally save to file
 # image.save("/dbfs/tmp/generated_image.png")

@@ -43,7 +43,7 @@ logger.info(f"Volume {CATALOG}.{SCHEMA}.{VOLUME} ready")
 # - the declaration where all costs should be declared: total of goods,
 #   royalties (if applicable), and any taxes
 # NOTE: will only run in databricks
-def fetch_valuation_metadata(volume_path: str):
+def fetch_valuation_metadata(volume_path: str) -> list[dict]:
     """
     Fetch valuation metadata from PDFs stored in Databricks Volume.
 

@@ -1,6 +1,5 @@
 """Configuration management for Valuation Curator."""
 
-import os
 from pathlib import Path
 
 import yaml
@@ -23,7 +22,10 @@ class ProjectConfig(BaseModel):
         None, description="Genie space ID for MCP integration"
     )
     system_prompt: str = Field(
-        default="You are a helpful AI assistant that helps users find and understand research papers.",
+        default=(
+            "You are a helpful AI assistant that helps users find anomalies in "
+            "customs declarations."
+        ),
         description="System prompt for the agent",
     )
 
@@ -120,7 +122,8 @@ def load_config(
 
 
 def get_env(spark: SparkSession) -> str:
-    """Get current environment from dbutils widget, falling back to ENV variable or 'dev'.
+    """Get current environment from dbutils widget, falling back to ENV variable
+       or 'dev'.
 
     Returns:
         Environment name (dev, acc, or prd)

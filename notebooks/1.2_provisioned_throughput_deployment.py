@@ -6,6 +6,8 @@
 # MAGIC - Models that need dedicated capacity
 # COMMAND ----------
 
+import time
+
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.serving import (
     AiGatewayConfig,
@@ -14,7 +16,6 @@ from databricks.sdk.service.serving import (
     EndpointCoreConfigInput,
     ServedEntityInput,
 )
-import time
 from loguru import logger
 from openai import OpenAI
 
@@ -43,7 +44,8 @@ w = WorkspaceClient()
 # MAGIC #### Core Parameters:
 # MAGIC - **workload_size**: `Small`, `Medium`, `Large` - Compute capacity per instance
 # MAGIC - **scale_to_zero_enabled**: `True`/`False` - Auto-scale to zero when idle
-# MAGIC - **min_provisioned_throughput**: Minimum model units (must be 0 if scale_to_zero enabled)
+# MAGIC - **min_provisioned_throughput**: Min model units
+# MAGIC   (must be 0 if scale_to_zero is enabled)
 # MAGIC - **max_provisioned_throughput**: Maximum model units for auto-scaling
 # MAGIC
 # MAGIC #### Monitoring & Observability:
@@ -159,7 +161,7 @@ w.serving_endpoints.create(
 # COMMAND ----------
 
 
-def wait_for_endpoint(endpoint_name: str, timeout_minutes: int = 30):
+def wait_for_endpoint(endpoint_name: str, timeout_minutes: int = 30) -> bool:
     """Wait for endpoint to be ready."""
     start_time = time.time()
     timeout_seconds = timeout_minutes * 60
@@ -185,7 +187,7 @@ def wait_for_endpoint(endpoint_name: str, timeout_minutes: int = 30):
 
             # Check if endpoint creation failed
             if config_state.value == "UPDATE_FAILED":
-                logger.error(f"Endpoint creation failed!")
+                logger.error("Endpoint creation failed!")
                 if hasattr(endpoint.state, "config_update_message"):
                     logger.error(f"Error: {endpoint.state.config_update_message}")
                 return False
@@ -199,7 +201,8 @@ def wait_for_endpoint(endpoint_name: str, timeout_minutes: int = 30):
         except Exception as e:
             logger.error(f"Error checking endpoint: {e}")
             logger.info(
-                "Tip: Check the Databricks UI -> Machine Learning -> Serving for detailed error messages"
+                "Tip: Check the Databricks UI -> Machine Learning -> Serving "
+                "for detailed error messages"
             )
             return False
 
@@ -245,7 +248,7 @@ logger.info(f"Tokens used: {response.usage.total_tokens}")
 # COMMAND ----------
 
 
-def get_endpoint_metrics(endpoint_name: str):
+def get_endpoint_metrics(endpoint_name: str) -> None:
     """Get endpoint metrics and status."""
     try:
         endpoint = w.serving_endpoints.get(endpoint_name)
@@ -286,7 +289,7 @@ def estimate_provisioned_cost(
     hours_per_day: int,
     days: int,
     cost_per_unit_hour: float = 2.0,  # Approximate cost
-):
+) -> float:
     """Estimate cost for provisioned throughput."""
     total_hours = hours_per_day * days
     total_cost = model_units * total_hours * cost_per_unit_hour
@@ -324,16 +327,14 @@ estimate_provisioned_cost(50, 8, 30)
 # COMMAND ----------
 
 # Uncomment to delete the endpoint
-"""
-def delete_endpoint(endpoint_name: str):
-    try:
-        w.serving_endpoints.delete(endpoint_name)
-        logger.info(f"Endpoint '{endpoint_name}' deleted successfully")
-    except Exception as e:
-        logger.error(f"Error deleting endpoint: {e}")
+# def delete_endpoint(endpoint_name: str) -> None:
+#     try:
+#         w.serving_endpoints.delete(endpoint_name)
+#         logger.info(f"Endpoint '{endpoint_name}' deleted successfully")
+#     except Exception as e:
+#         logger.error(f"Error deleting endpoint: {e}")
 
 # delete_endpoint(ENDPOINT_NAME)
-"""
 
 logger.info("Remember to delete your provisioned endpoint when done!")
 logger.info("Uncomment the code above to delete the endpoint.")
