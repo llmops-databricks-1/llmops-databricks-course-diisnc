@@ -2,7 +2,7 @@
 name = "arxiv-curator"
 dynamic = ["version"]
 description = "Arxiv Curator - Shared utilities for LLMOps Course on Databricks"
-requires-python = ">=3.12, <3.13"
+requires-python = ">=3.12, <3.13" # match the job environment_version: "4" (resources)
 dependencies = [
     "cffi==1.17.1",
     "cloudpickle==3.1.1",

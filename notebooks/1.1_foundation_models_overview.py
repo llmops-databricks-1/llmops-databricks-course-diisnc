@@ -68,13 +68,12 @@ for endpoint in endpoints:
 
 # Using OpenAI SDK with Databricks
 # Authenticate using Databricks SDK
-host = w.config.host
-token = w.tokens.create(lifetime_seconds=1200).token_value
+host = w.config.host  # this will be the same host we configured in databricks extension
+token = w.tokens.create(
+    lifetime_seconds=1200
+).token_value  # token generated in the same workspace
 
-client = OpenAI(
-    api_key=token,
-    base_url=f"{host.rstrip('/')}/serving-endpoints"
-)
+client = OpenAI(api_key=token, base_url=f"{host.rstrip('/')}/serving-endpoints")
 model_name = "databricks-llama-4-maverick"
 
 # Call the model
@@ -82,11 +81,11 @@ response = client.chat.completions.create(
     model=model_name,
     messages=[
         {"role": "system", "content": "You are a helpful AI assistant."},
-        {"role": "user", "content": "Explain LLMOps in 3 sentences."}
+        {"role": "user", "content": "Explain LLMOps in 3 sentences."},
     ],
     max_tokens=200,
-     # Temperature ontrols randomness: 0.0 = deterministic, 1.0 = more creative/random
-    temperature=0.7
+    # Temperature ontrols randomness: 0.0 = deterministic, 1.0 = more creative/random
+    temperature=0.7,
 )
 
 logger.info("Response:")
@@ -131,16 +130,23 @@ logger.info(f"Output tokens: {response.usage.completion_tokens}")
 
 # COMMAND ----------
 
-def calculate_api_cost(input_tokens: int, output_tokens: int,
-                       input_dbu_per_1m: float, output_dbu_per_1m: float) -> float:
+
+def calculate_api_cost(
+    input_tokens: int,
+    output_tokens: int,
+    input_dbu_per_1m: float,
+    output_dbu_per_1m: float,
+) -> float:
     """Calculate DBU cost for pay-per-token API."""
     input_cost = (input_tokens / 1_000_000) * input_dbu_per_1m
     output_cost = (output_tokens / 1_000_000) * output_dbu_per_1m
     return input_cost + output_cost
 
+
 def calculate_provisioned_cost(hours: int, dbu_per_hour: float) -> float:
     """Calculate DBU cost for provisioned throughput."""
     return hours * dbu_per_hour
+
 
 # Example: 1M input tokens, 500K output tokens with Llama 3.3 70B
 api_cost = calculate_api_cost(1_000_000, 500_000, 7.143, 21.429)
@@ -160,7 +166,9 @@ logger.info(f"For {input_tokens + output_tokens:,} tokens in 24h:")
 logger.info(f"API cost (Llama 3.3 70B): {api_cost_equivalent:.2f} DBUs")
 logger.info(f"Provisioned cost (Llama 3.2 1B): {provisioned_cost:.2f} DBUs")
 logger.info(f"Difference: {api_cost_equivalent - provisioned_cost:.2f} DBUs")
-logger.info("Provisioned throughput becomes cost-effective at high, predictable volumes")
+logger.info(
+    "Provisioned throughput becomes cost-effective at high, predictable volumes"
+)
 
 # COMMAND ----------
 

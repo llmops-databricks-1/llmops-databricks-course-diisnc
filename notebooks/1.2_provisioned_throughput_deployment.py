@@ -71,14 +71,14 @@ w = WorkspaceClient()
 # COMMAND ----------
 
 # Configuration - Using a real model from system.ai catalog
-ENDPOINT_NAME = "llama-3-2-1b-provisioned"  # Your endpoint name
-MODEL_NAME = "system.ai.llama_v3_2_1b_instruct"  # Model from system.ai catalog
+ENDPOINT_NAME = "llama-3-1-8b-provisioned"  # Your endpoint name
+MODEL_NAME = "system.ai.meta_llama_v3_1_8b_instruct"  # Model from system.ai catalog
 WORKLOAD_SIZE = "Small"  # Options: Small, Medium, Large
 SCALE_TO_ZERO = True  # Set to True to save costs when not in use
 MIN_PROVISIONED_THROUGHPUT = 0  # Must be 0 when scale_to_zero is enabled
 MAX_PROVISIONED_THROUGHPUT = 20  # Max capacity for auto-scaling
 
-catalog = "llmops_dev"
+catalog = "workspace"
 schema = "arxiv"
 BUDGET_POLICY_ID = None  # e.g. "my-budget-policy-id"
 # COMMAND ----------
@@ -88,6 +88,7 @@ BUDGET_POLICY_ID = None  # e.g. "my-budget-policy-id"
 
 # COMMAND ----------
 
+
 def endpoint_exists(endpoint_name: str) -> bool:
     """Check if serving endpoint exists."""
     try:
@@ -95,6 +96,7 @@ def endpoint_exists(endpoint_name: str) -> bool:
         return True
     except Exception:
         return False
+
 
 if endpoint_exists(ENDPOINT_NAME):
     logger.info(f"Endpoint '{ENDPOINT_NAME}' already exists")
@@ -111,9 +113,10 @@ else:
 # MAGIC - Provisioned throughput endpoints take 15-30 minutes to deploy
 # MAGIC - You'll be charged for the provisioned capacity while it's running
 # MAGIC - Make sure to delete the endpoint when not in use for the course
+# MAGIC     - (code for deletion at the end of this notebook)
 
 # COMMAND ----------
-
+# note: not available with databricks free version
 ai_gateway_cfg = AiGatewayConfig(
     inference_table_config=AiGatewayInferenceTableConfig(
         enabled=True,
@@ -129,7 +132,7 @@ endpoint_config = EndpointCoreConfigInput(
     served_entities=[
         ServedEntityInput(
             entity_name=MODEL_NAME,
-            entity_version="1",
+            entity_version="3",
             workload_size=WORKLOAD_SIZE,
             scale_to_zero_enabled=SCALE_TO_ZERO,
             min_provisioned_throughput=MIN_PROVISIONED_THROUGHPUT,
@@ -155,6 +158,7 @@ w.serving_endpoints.create(
 
 # COMMAND ----------
 
+
 def wait_for_endpoint(endpoint_name: str, timeout_minutes: int = 30):
     """Wait for endpoint to be ready."""
     start_time = time.time()
@@ -169,7 +173,7 @@ def wait_for_endpoint(endpoint_name: str, timeout_minutes: int = 30):
             logger.info(f"Status: config_update={config_state}, ready={ready_state}")
 
             # Check for failure state
-            if hasattr(endpoint.state, 'config_update_message'):
+            if hasattr(endpoint.state, "config_update_message"):
                 msg = endpoint.state.config_update_message
                 if msg:
                     logger.info(f"Message: {msg}")
@@ -182,7 +186,7 @@ def wait_for_endpoint(endpoint_name: str, timeout_minutes: int = 30):
             # Check if endpoint creation failed
             if config_state.value == "UPDATE_FAILED":
                 logger.error(f"Endpoint creation failed!")
-                if hasattr(endpoint.state, 'config_update_message'):
+                if hasattr(endpoint.state, "config_update_message"):
                     logger.error(f"Error: {endpoint.state.config_update_message}")
                 return False
 
@@ -194,8 +198,11 @@ def wait_for_endpoint(endpoint_name: str, timeout_minutes: int = 30):
 
         except Exception as e:
             logger.error(f"Error checking endpoint: {e}")
-            logger.info("Tip: Check the Databricks UI -> Machine Learning -> Serving for detailed error messages")
+            logger.info(
+                "Tip: Check the Databricks UI -> Machine Learning -> Serving for detailed error messages"
+            )
             return False
+
 
 # Uncomment to monitor deployment
 wait_for_endpoint(ENDPOINT_NAME)
@@ -211,19 +218,19 @@ wait_for_endpoint(ENDPOINT_NAME)
 host = w.config.host
 token = w.tokens.create(lifetime_seconds=1200).token_value
 
-client = OpenAI(
-    api_key=token,
-    base_url=f"{host}/serving-endpoints"
-)
+client = OpenAI(api_key=token, base_url=f"{host}/serving-endpoints")
 
 response = client.chat.completions.create(
     model=ENDPOINT_NAME,
     messages=[
         {"role": "system", "content": "You are a helpful AI assistant."},
-        {"role": "user", "content": "Explain the benefits of provisioned throughput for LLMs."}
+        {
+            "role": "user",
+            "content": "Explain the benefits of provisioned throughput for LLMs.",
+        },
     ],
     max_tokens=500,
-    temperature=0.7
+    temperature=0.7,
 )
 
 logger.info("Response:")
@@ -237,6 +244,7 @@ logger.info(f"Tokens used: {response.usage.total_tokens}")
 
 # COMMAND ----------
 
+
 def get_endpoint_metrics(endpoint_name: str):
     """Get endpoint metrics and status."""
     try:
@@ -249,14 +257,19 @@ def get_endpoint_metrics(endpoint_name: str):
         for entity in endpoint.config.served_entities:
             logger.info(f"  Model: {entity.entity_name}")
             logger.info(f"  Workload Size: {entity.workload_size}")
-            logger.info(f"  Min Throughput: {entity.min_provisioned_throughput} model units")
-            logger.info(f"  Max Throughput: {entity.max_provisioned_throughput} model units")
+            logger.info(
+                f"  Min Throughput: {entity.min_provisioned_throughput} model units"
+            )
+            logger.info(
+                f"  Max Throughput: {entity.max_provisioned_throughput} model units"
+            )
             logger.info(f"  Scale to Zero: {entity.scale_to_zero_enabled}")
 
         return endpoint
     except Exception as e:
         logger.error(f"Error getting metrics: {e}")
         return None
+
 
 get_endpoint_metrics(ENDPOINT_NAME)
 
@@ -267,11 +280,12 @@ get_endpoint_metrics(ENDPOINT_NAME)
 
 # COMMAND ----------
 
+
 def estimate_provisioned_cost(
     model_units: int,
     hours_per_day: int,
     days: int,
-    cost_per_unit_hour: float = 2.0  # Approximate cost
+    cost_per_unit_hour: float = 2.0,  # Approximate cost
 ):
     """Estimate cost for provisioned throughput."""
     total_hours = hours_per_day * days
@@ -295,6 +309,7 @@ def estimate_provisioned_cost(
     logger.info(f"  Effective cost: ${cost_per_million_tokens:.2f} per 1M tokens")
 
     return total_cost
+
 
 # Example: 50 model units, 8 hours/day, 30 days
 estimate_provisioned_cost(50, 8, 30)
