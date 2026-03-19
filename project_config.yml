@@ -2,9 +2,9 @@
 
 # Development environment
 dev:
-  catalog: workspace
-  schema: arxiv
-  volume: arxiv_files
+  catalog: customs
+  schema: customs_valuation
+  volume: customs_valuation_files
   llm_endpoint: databricks-llama-4-maverick
   embedding_endpoint: databricks-gte-large-en
   warehouse_id: 3a45f195a77d6027
@@ -13,9 +13,9 @@ dev:
 
 # Acceptance/Staging environment
 acc:
-  catalog: workspace
-  schema: arxiv
-  volume: arxiv_files
+  catalog: customs
+  schema: customs_valuation
+  volume: customs_valuation_files
   llm_endpoint: databricks-meta-llama-3-1-70b-instruct
   embedding_endpoint: databricks-gte-large-en
   warehouse_id: 3a45f195a77d6027
@@ -24,9 +24,9 @@ acc:
 
 # Production environment
 prd:
-  catalog: workspace
-  schema: arxiv
-  volume: arxiv_files
+  catalog: customs
+  schema: customs_valuation
+  volume: customs_valuation_files
   llm_endpoint: databricks-meta-llama-3-1-70b-instruct
   embedding_endpoint: databricks-gte-large-en
   warehouse_id: 3a45f195a77d6027

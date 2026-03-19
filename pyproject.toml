@@ -1,7 +1,7 @@
 [project]
-name = "arxiv-curator"
+name = "valuation-curator"
 dynamic = ["version"]
-description = "Arxiv Curator - Shared utilities for LLMOps Course on Databricks"
+description = "Valuation Curator - Shared utilities for LLMOps Course on Databricks"
 requires-python = ">=3.12, <3.13" # match the job environment_version: "4" (resources)
 dependencies = [
     "cffi==1.17.1",
@@ -19,7 +19,6 @@ dependencies = [
     "backoff==2.2.1",
     "mlflow==3.8.1",
     "nest-asyncio==1.6.0",
-    "arxiv==2.3.1",
     "databricks-agents==1.8.2",
     "psycopg==3.3.2",
     "psycopg-pool==3.3.0",
@@ -42,7 +41,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where =["src"]
-include = ["arxiv_curator*"]
+include = ["valuation_curator*"]
 
 [tool.setuptools.dynamic]
 version = { file = "version.txt" }
