@@ -9,7 +9,7 @@ dev:
   embedding_endpoint: databricks-gte-large-en
   warehouse_id: 7077f4cb0e616c62
   vector_search_endpoint: llmops_course_vs_endpoint
-  genie_space_id: 01f113061bf41578baff744a41bd9ab0
+  genie_space_id: null  # Set to your Genie Space ID if you have access
 
 # Acceptance/Staging environment
 acc:
@@ -20,7 +20,7 @@ acc:
   embedding_endpoint: databricks-gte-large-en
   warehouse_id: 7077f4cb0e616c62
   vector_search_endpoint: llmops_course_vs_endpoint
-  genie_space_id: 01f113061bf41578baff744a41bd9ab0
+  genie_space_id: null  # Set to your Genie Space ID if you have access
 
 # Production environment
 prd:
@@ -31,7 +31,7 @@ prd:
   embedding_endpoint: databricks-gte-large-en
   warehouse_id: 7077f4cb0e616c62
   vector_search_endpoint: llmops_course_vs_endpoint
-  genie_space_id: 01f113061bf41578baff744a41bd9ab0
+  genie_space_id: null  # Set to your Genie Space ID if you have access
 
 # Model configuration
 model_config:
