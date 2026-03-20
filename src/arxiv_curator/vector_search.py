@@ -25,6 +25,7 @@ class VectorSearchManager:
             config: ProjectConfig object
             endpoint_name: Name of the vector search endpoint (uses config if None)
             embedding_model: Name of the embedding model endpoint (uses config if None)
+            usage_policy_id: ID of the usage policy for the endpoint (optional)
         """
         self.config = config
         self.endpoint_name = endpoint_name or config.vector_search_endpoint
