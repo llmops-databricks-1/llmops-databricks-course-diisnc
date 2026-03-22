@@ -31,7 +31,7 @@
 
 # COMMAND ----------
 
-# MAGIC %pip install ../arxiv_curator-0.1.0-py3-none-any.whl --force-reinstall
+# MAGIC %pip install ../valuation_curator-0.1.0-py3-none-any.whl --force-reinstall
 
 # COMMAND ----------
 
@@ -41,7 +41,7 @@
 
 import re
 
-from arxiv_curator.config import get_env, load_config
+from valuation_curator.config import get_env, load_config
 from loguru import logger
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F

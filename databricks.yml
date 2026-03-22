@@ -12,6 +12,9 @@ variables:
   git_sha:
     description: "Git SHA of the deployed commit"
     default: "local"
+  schedule_pause_status:
+    description: schedule pause status
+    default: PAUSED
 
 # uv build command will be run when the databricks bundle is deployed
 # path . defines the root of the project folder, where this file is located

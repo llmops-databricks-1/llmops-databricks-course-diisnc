@@ -1,13 +1,13 @@
 resources:
   jobs:
     data-pipeline:
-      name: arxiv-data-pipeline
+      name: valuation-data-pipeline
       schedule:
         quartz_cron_expression: "0 0 6 * * ?"
         timezone_id: "Europe/Amsterdam"
         pause_status: ${var.schedule_pause_status}
       tags:
-        project_name: "arxiv-curator"
+        project_name: "valuation-curator"
       environments:
         - environment_key: default
           spec:
@@ -19,6 +19,6 @@ resources:
         - task_key: preprocessing
           environment_key: default
           notebook_task:
-            notebook_path: deployment_scripts/process_data.py
+            notebook_path: ../notebooks/2.2_pdf_parsing_ai_parse.py
             base_parameters:
               env: ${bundle.target}

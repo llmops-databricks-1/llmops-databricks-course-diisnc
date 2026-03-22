@@ -14,9 +14,9 @@ import json
 import os
 import re
 import time
-
 import arxiv
-from arxiv_curator.config import ProjectConfig
+
+from valuation_curator.config import ProjectConfig
 from loguru import logger
 from pyspark.sql import SparkSession
 from pyspark.sql import types as T
@@ -54,33 +54,47 @@ class DataProcessor:
         self.schema = config.schema
         self.volume = config.volume
 
+        # key to store data into volumes
         self.end = time.strftime("%Y%m%d%H%M", time.gmtime())
+        # create folder with time string
         self.pdf_dir = f"/Volumes/{self.catalog}/{self.schema}/{self.volume}/{self.end}"
         os.makedirs(self.pdf_dir, exist_ok=True)
-        self.papers_table = f"{self.catalog}.{self.schema}.arxiv_papers"
+        # where metadata is stored
+        self.docs_table = f"{self.catalog}.{self.schema}.customs_valuation_metadata"
+        # where result of ai_parse_document will be stored
         self.parsed_table = f"{self.catalog}.{self.schema}.ai_parsed_docs_table"
 
     def _get_range_start(self) -> str:
         """
-        Get start time range for arxiv paper search.
-        If arxiv_papers table exists, uses max(processed) as start.
-        Otherwise, uses 3 days ago as start.
+        Goal: have a daily job running, but the pdfs that were already processed are not
+              supposed to be processed again. If the metadata table exists, the goal is to
+              fetch papers between the latest processed timestamp and now. Otherwise, we
+              take the papers from the last 3 days.
+
+        Task: Get start time range for documents search.
+              If customs_valuation_metadata table exists, uses max(processed) as start.
+              Otherwise, uses 3 days ago as start.
 
         Returns:
             start string in "YYYYMMDDHHMM" format
         """
 
-        if self.spark.catalog.tableExists(self.papers_table):
-            result = self.spark.sql(f"""
+        if self.spark.catalog.tableExists(self.docs_table):
+            result = self.spark.sql(
+                f"""
                 SELECT max(processed)
-                FROM {self.papers_table}
-            """).collect()
+                FROM {self.docs_table}
+            """
+            ).collect()
             start = str(result[0][0])
-            logger.info(f"Found existing arxiv_papers table. Starting from: {start}")
+            logger.info(
+                f"Found existing customs_valuation_metadata table. Starting from: {start}"
+            )
         else:
             start = time.strftime("%Y%m%d%H%M", time.gmtime(time.time() - 24 * 3600 * 3))
             logger.info(
-                f"No existing arxiv_papers table. Starting from 3 days ago: {start}"
+                "No existing customs_valuation_metadata table. "
+                f"Starting from 3 days ago: {start}"
             )
         return start
 
@@ -89,7 +103,7 @@ class DataProcessor:
     ) -> list[dict] | None:
         """
         Download papers from arxiv and store metadata
-        in arxiv_papers table.
+        in customs_valuation_metadata table.
 
         Returns:
             List of paper metadata dictionaries if papers were downloaded,
@@ -156,12 +170,13 @@ class DataProcessor:
         )
 
         # Create table if it doesn't exist
-        metadata_df.write.format("delta").mode("ignore").saveAsTable(self.papers_table)
+        metadata_df.write.format("delta").mode("ignore").saveAsTable(self.docs_table)
 
         # MERGE to avoid duplicates based on arxiv_id
         metadata_df.createOrReplaceTempView("new_papers")
-        self.spark.sql(f"""
-            MERGE INTO {self.papers_table} target
+        self.spark.sql(
+            f"""
+            MERGE INTO {self.docs_table} target
             USING new_papers source
             ON target.arxiv_id = source.arxiv_id
             WHEN NOT MATCHED THEN INSERT (
@@ -172,8 +187,9 @@ class DataProcessor:
                 source.summary, source.pdf_url, source.published,
                 source.processed, source.volume_path
             )
-        """)
-        logger.info(f"Merged {len(records)} paper records into {self.papers_table}")
+        """
+        )
+        logger.info(f"Merged {len(records)} paper records into {self.docs_table}")
         return records
 
     def parse_pdfs_with_ai(self) -> None:
@@ -182,15 +198,19 @@ class DataProcessor:
 
         """
 
-        self.spark.sql(f"""
+        self.spark.sql(
+            f"""
             CREATE TABLE IF NOT EXISTS {self.parsed_table} (
                 path STRING,
                 parsed_content STRING,
                 processed LONG
             )
-        """)
+        """
+        )
 
-        self.spark.sql(f"""
+        # CHECK HOW THIS BEHAVES WITH TABLES
+        self.spark.sql(
+            f"""
             INSERT INTO {self.parsed_table}
             SELECT
                 path,
@@ -200,7 +220,8 @@ class DataProcessor:
                 "{self.pdf_dir}",
                 format => 'binaryFile'
             )
-        """)
+        """
+        )
 
         logger.info(f"Parsed PDFs from {self.pdf_dir} and saved to {self.parsed_table}")
 
@@ -288,7 +309,7 @@ class DataProcessor:
         extract_paper_id_udf = udf(self._extract_paper_id, StringType())
         clean_chunk_udf = udf(self._clean_chunk, StringType())
 
-        metadata_df = self.spark.table(self.papers_table).select(
+        metadata_df = self.spark.table(self.docs_table).select(
             col("arxiv_id"),
             col("title"),
             col("summary"),
@@ -317,11 +338,15 @@ class DataProcessor:
         chunks_df.write.mode("append").saveAsTable(arxiv_chunks_table)
         logger.info(f"Saved chunks to {arxiv_chunks_table}")
 
-        # Enable Change Data Feed
-        self.spark.sql(f"""
+        # Enable Change Data Feed: important since vector search index will be updated
+        # based on changes in the chunks table. Allows to update only based on new content
+        # that's being added instead of reprocessing everything.
+        self.spark.sql(
+            f"""
             ALTER TABLE {arxiv_chunks_table}
             SET TBLPROPERTIES (delta.enableChangeDataFeed = true)
-        """)
+        """
+        )
         logger.info(f"Change Data Feed enabled for {arxiv_chunks_table}")
 
     def process_and_save(self) -> None:

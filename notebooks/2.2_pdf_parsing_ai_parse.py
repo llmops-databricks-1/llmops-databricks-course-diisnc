@@ -7,13 +7,14 @@
 # MAGIC - AI Parse Documents for intelligent parsing
 # MAGIC - Comparison with other PDF parsing tools
 # MAGIC - Storing parsed content in Delta tables
+# MAGIC - NOTE: THIS NOTEBOOK DOES NOT RUN LOCALLY:ai_parse_document() requires db context
 
 # COMMAND ----------
-# %pip install ../arxiv_curator-0.1.0-py3-none-any.whl
+# %pip install ../valuation_curator-0.1.0-py3-none-any.whl
 # COMMAND ----------
 
-from arxiv_curator.config import get_env, load_config
-from arxiv_curator.data_processor import DataProcessor
+from valuation_curator.config import get_env, load_config
+from valuation_curator.data_processor import DataProcessor
 from databricks.connect import DatabricksSession
 from loguru import logger
 
@@ -25,7 +26,7 @@ logger.info("✅ Using Databricks Connect Spark session")
 env = get_env(spark)
 cfg = load_config("../project_config.yml", env)
 
-# Initialize the DataProcessor (reusable class from arxiv_curator package)
+# Initialize the DataProcessor (reusable class from valuation_curator package)
 processor = DataProcessor(spark=spark, config=cfg)
 
 logger.info(f"Catalog: {cfg.catalog}, Schema: {cfg.schema}, Volume: {cfg.volume}")
@@ -51,7 +52,7 @@ logger.info(f"Catalog: {cfg.catalog}, Schema: {cfg.schema}, Volume: {cfg.volume}
 # MAGIC %md
 # MAGIC ## 2. Download PDFs, Parse, and Create Chunks
 # MAGIC
-# MAGIC The `DataProcessor` class from `arxiv_curator.data_processor` handles the full
+# MAGIC The `DataProcessor` class from `valuation_curator.data_processor` handles the full
 # MAGIC pipeline:
 # MAGIC 1. Download PDFs for unprocessed papers from arXiv
 # MAGIC 2. Update `arxiv_papers` table with processed timestamps and volume paths
