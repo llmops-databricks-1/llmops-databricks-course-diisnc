@@ -1,4 +1,76 @@
 # Databricks notebook source
+# MAGIC %md
+# MAGIC ## 1.3 — Valuation Metadata Ingestion (Recovery/backfill utility)
+# MAGIC
+# MAGIC ### Purpose
+# MAGIC This notebook scans PDFs already present in a Databricks Volume and registers
+# MAGIC case-level metadata in `customs_valuation_metadata`.
+# MAGIC
+# MAGIC This notebook is intended for:
+# MAGIC - Initial run
+# MAGIC - Backfill/reconciliation after manual file uploads to Volume
+# MAGIC - Recovery when metadata is missing but files are still available in Volume
+# MAGIC
+# MAGIC This notebook is not the daily incremental ingestion job from Google Drive.
+# MAGIC
+# MAGIC ---
+# MAGIC
+# MAGIC ### Expected Volume Layout
+# MAGIC
+# MAGIC `/Volumes/<catalog>/<schema>/<volume>/samples/`
+# MAGIC
+# MAGIC Expected case folder pattern:
+# MAGIC  - `case_00/`
+# MAGIC  - `case_01/`
+# MAGIC  - ...
+# MAGIC
+# MAGIC Expected file pattern inside each case:
+# MAGIC  - `invoice_*.pdf` (required)
+# MAGIC  - `declaration_*.pdf` (required)
+# MAGIC  - `royalty_*.pdf` (optional)
+# MAGIC
+# MAGIC Only cases with both `invoice` and `declaration` are included.
+# MAGIC
+# MAGIC ---
+# MAGIC
+# MAGIC ### Output Table
+# MAGIC
+# MAGIC Target table: `customs_valuation_metadata`
+# MAGIC
+# MAGIC Columns:
+# MAGIC  - `id` (case id, e.g. `case_00`)
+# MAGIC  - `invoice_path`
+# MAGIC  - `declaration_path`
+# MAGIC  - `royalty_path` (nullable)
+# MAGIC  - `ingestion_timestamp`
+# MAGIC  - `processed` (nullable, populated by downstream processor)
+# MAGIC  - `volume_path` (nullable, populated by downstream processor)
+# MAGIC
+# MAGIC ---
+# MAGIC
+# MAGIC ### Write Semantics
+# MAGIC
+# MAGIC Write strategy is **insert-only by `id`**:
+# MAGIC  - If table does not exist: create it
+# MAGIC  - If row with same `id` exists: do not update it
+# MAGIC  - If row is new: insert it
+# MAGIC
+# MAGIC This preserves existing processing state (`processed`, `volume_path`, etc.)
+# MAGIC and avoids accidental resets.
+# MAGIC
+# MAGIC ---
+# MAGIC
+# MAGIC ### Daily Pipeline Note
+# MAGIC
+# MAGIC For daily incremental ingestion and parsing, use:
+# MAGIC  - `2.2_pdf_parsing_ai_parse` (`DataProcessor.process_and_save()`)
+# MAGIC
+# MAGIC That pipeline handles:
+# MAGIC  - Watermark-based incremental fetch (`max(processed)`)
+# MAGIC  - Drive download
+# MAGIC  - Metadata merge
+# MAGIC  - AI parsing and chunking
+# COMMAND ----------
 import os
 from datetime import datetime
 
@@ -135,13 +207,41 @@ df = spark.createDataFrame(cases, schema=schema)
 # Write to Delta table
 table_path = f"{CATALOG}.{SCHEMA}.{TABLE_NAME}"
 
-df.write.format("delta").mode("overwrite").option("mergeSchema", "true").saveAsTable(
-    table_path
+# mode("ignore") = if table does not exist, create; if exists, do nothing
+df.write.format("delta").mode("ignore").saveAsTable(table_path)
+
+# Upsert logic (insert-only for now, no updates to existing records)
+df.createOrReplaceTempView("incoming_cases")
+spark.sql(
+    f"""
+    MERGE INTO {table_path} AS target
+    USING incoming_cases AS source
+    ON target.id = source.id
+    WHEN NOT MATCHED THEN INSERT (
+        id,
+        invoice_path,
+        declaration_path,
+        royalty_path,
+        ingestion_timestamp,
+        processed,
+        volume_path
+    ) VALUES (
+        source.id,
+        source.invoice_path,
+        source.declaration_path,
+        source.royalty_path,
+        source.ingestion_timestamp,
+        source.processed,
+        source.volume_path
+    )
+"""
 )
 
-logger.info(f"Created Delta table: {table_path}")
-logger.info(f"Records: {df.count()}")
+logger.info(f"Upsert complete (insert-only): {table_path}")
+logger.info(f"Incoming records scanned: {df.count()}")
 
+# check incoming cases (in memory, does not mean it was inserted, just that it was scanned
+# for insertion)
 # display(df.limit(5))
 
 # COMMAND ----------
@@ -156,9 +256,9 @@ logger.info("Schema:")
 cases_df.printSchema()
 
 logger.info("Sample records:")
-cases_df.select("id", "invoice_path", "declaration_path", "royalty_path").show(
-    5, truncate=50
-)
+cases_df.select(
+    "id", "invoice_path", "declaration_path", "royalty_path", "ingestion_timestamp"
+).show(5, truncate=50)
 
 # COMMAND ----------
 # Data Statistics
