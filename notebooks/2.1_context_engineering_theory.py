@@ -146,6 +146,10 @@ logger.info(f"Approximate words: {available_for_context * 0.75:,.0f}")
 # MAGIC - Make it more specific or general
 # MAGIC - Focus on different aspects
 # MAGIC
+# MAGIC In vector search, queries are converted into embeddings (semantic
+# MAGIC representations). Multiple rewrites create different semantic views of the same
+# MAGIC intent, increasing the chances of matching relevant content.
+# MAGIC
 # MAGIC This improves recall by searching with multiple phrasings.
 
 # COMMAND ----------
@@ -221,6 +225,10 @@ for i, var in enumerate(variations, 1):
 
 
 # Example: Context ordering strategies
+# There are more strategies such as:
+# - chronological ordering (order by events, logs...): useful for document history
+# - source grouping (group chunks from the same document together)
+# - instruction-aware ordering (place critical instruction at beginning (context) or end)
 def order_context_by_relevance(chunks: list[dict]) -> list[dict]:
     """Order chunks to avoid 'lost in the middle' problem.
 
@@ -442,7 +450,10 @@ logger.info(prompt)
 # MAGIC 1. Chunk documents appropriately (more in next notebook)
 # MAGIC 2. Use high-quality embeddings
 # MAGIC 3. Implement metadata filtering
-# MAGIC 4. Order context strategically
+# MAGIC 4. Order context strategically. E.g., my use case may benefit from ordering like:
+# MAGIC    - Customs declaration (target to validate)
+# MAGIC    - Invoice (base value)
+# MAGIC    - Royalty agreement (adjustments)
 # MAGIC 5. Monitor retrieval quality
 # MAGIC 6. Provide clear instructions in prompts
 # MAGIC 7. Handle cases where context doesn't contain the answer
