@@ -324,7 +324,6 @@ if mcp_tools:
 # MAGIC ### 4. **Enterprise Features**
 # MAGIC - Built-in authentication
 # MAGIC - Audit logging
-# MAGIC - Rate limiting
 # MAGIC - High availability
 
 # COMMAND ----------
