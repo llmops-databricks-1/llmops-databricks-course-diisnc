@@ -66,5 +66,6 @@ logger.info(f"Catalog: {cfg.catalog}, Schema: {cfg.schema}, Volume: {cfg.volume}
 # MAGIC for scheduled runs.
 
 # COMMAND ----------
-
+# note: I think my chunks do not have enough quality and I might need to iteratively come
+# back and improve the chunking strategy
 processor.process_and_save()

@@ -612,6 +612,8 @@ class DataProcessor:
             return
 
         # Step 2: Parse PDFs with ai_parse_document
+        # Function ai_parse_document already does chunking but it needs to be processed to
+        # extract them (done in next step)
         self.parse_pdfs_with_ai()
         logger.info("Parsed documents.")
 

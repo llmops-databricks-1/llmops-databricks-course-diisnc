@@ -97,8 +97,8 @@ schema = cfg.schema
 
 # COMMAND ----------
 
-# Load chunks from the arxiv_chunks table created in Lecture 2.2
-chunks_df = spark.table(f"{catalog}.{schema}.arxiv_chunks")
+# Load chunks from the chunks_table table created in Lecture 2.2
+chunks_df = spark.table(f"{catalog}.{schema}.chunks_table")
 
 logger.info(f"Total chunks available: {chunks_df.count()}")
 chunks_df.show(5, truncate=50)
