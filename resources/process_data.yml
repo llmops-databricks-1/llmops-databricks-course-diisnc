@@ -19,6 +19,6 @@ resources:
         - task_key: preprocessing
           environment_key: default
           notebook_task:
-            notebook_path: ../notebooks/2.2_pdf_parsing_ai_parse.py
+            notebook_path: /deployment_scripts/process_data.py
             base_parameters:
               env: ${bundle.target}

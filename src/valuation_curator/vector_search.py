@@ -1,4 +1,4 @@
-"""Vector search management for arxiv papers."""
+"""Vector search management for valuation documents."""
 
 from typing import Any
 
@@ -8,7 +8,7 @@ from loguru import logger
 
 
 class VectorSearchManager:
-    """Manages vector search endpoints and indexes for arxiv paper chunks."""
+    """Manages vector search endpoints and indexes for valuation documents chunks."""
 
     def __init__(
         self,
@@ -32,7 +32,7 @@ class VectorSearchManager:
         self.usage_policy_id = usage_policy_id
 
         self.client = VectorSearchClient()
-        self.index_name = f"{self.catalog}.{self.schema}.arxiv_index"
+        self.index_name = f"{self.catalog}.{self.schema}.valuation_index"
 
     def create_endpoint_if_not_exists(self) -> None:
         """Create vector search endpoint if it doesn't exist."""
@@ -66,7 +66,7 @@ class VectorSearchManager:
             Vector search index object
         """
         self.create_endpoint_if_not_exists()
-        source_table = f"{self.catalog}.{self.schema}.arxiv_chunks_table"
+        source_table = f"{self.catalog}.{self.schema}.chunks_table"
 
         # Try to get existing index
         try:
@@ -84,7 +84,7 @@ class VectorSearchManager:
                 index_name=self.index_name,
                 pipeline_type="TRIGGERED",
                 primary_key="id",
-                embedding_source_column="text",
+                embedding_source_column="text",  # name of column in chunks_table
                 embedding_model_endpoint_name=self.embedding_model,
                 usage_policy_id=self.usage_policy_id,
             )

@@ -78,7 +78,7 @@ schema = cfg.schema
 # MAGIC
 # MAGIC ```
 # MAGIC ┌─────────────────────────────────────────┐
-# MAGIC │     Delta Table (arxiv_chunks)          │
+# MAGIC │     Delta Table (chunks_table)          │
 # MAGIC │  - id                                    │
 # MAGIC │  - text                                  │
 # MAGIC │  - metadata (title, author, etc.)       │
@@ -111,6 +111,7 @@ schema = cfg.schema
 
 # Using VectorSearchManager from valuation_curator.vector_search
 # This handles endpoint and index creation automatically
+# the index can be checked in the Databricks UI under compute -> "Vector Search" section
 
 vs_manager = VectorSearchManager(
     config=cfg,
@@ -119,6 +120,9 @@ vs_manager = VectorSearchManager(
 )
 
 logger.info(f"Vector Search Endpoint: {vs_manager.endpoint_name}")
+# For multilingual chunks: model multilingual-e5-large (not available db free version)
+# It's still a better approach to translate chunks to English and use a strong English
+# model like databricks-gte-large-en
 logger.info(f"Embedding Model: {vs_manager.embedding_model}")
 logger.info(f"Index Name: {vs_manager.index_name}")
 
@@ -148,13 +152,13 @@ vs_manager.create_endpoint_if_not_exists()
 # This automatically:
 # - Creates the index if it doesn't exist
 # - Configures it with the embedding model
-# - Sets up delta sync with the arxiv_chunks table
+# - Sets up delta sync with the chunks_table table
 
 index = vs_manager.create_or_get_index()
 
 logger.info("\n✓ Vector search setup complete!")
 logger.info(f"  Index: {vs_manager.index_name}")
-logger.info(f"  Source: {vs_manager.catalog}.{vs_manager.schema}.arxiv_chunks")
+logger.info(f"  Source: {vs_manager.catalog}.{vs_manager.schema}.chunks_table")
 logger.info(f"  Embedding Model: {vs_manager.embedding_model}")
 
 # COMMAND ----------
@@ -225,11 +229,14 @@ def parse_vector_search_results(results: dict) -> list[dict]:
 
 # COMMAND ----------
 
-# Simple similarity search
-query = "What are the latest techniques in machine learning?"
+# Wait for index to be ready before querying
+index.wait_until_ready()
+
+# Simple similarity search (returns chunks)
+query = "Do I have documents with 5% royalty?"
 
 results = index.similarity_search(
-    query_text=query, columns=["text", "id", "title", "arxiv_id"], num_results=5
+    query_text=query, columns=["text", "id", "case_id"], num_results=5
 )
 
 logger.info(f"Query: {query}\n")
@@ -238,9 +245,8 @@ logger.info("=" * 80)
 
 # Parse results using helper function
 for i, row in enumerate(parse_vector_search_results(results), 1):
-    logger.info(f"\n{i}. Paper: {row.get('title', 'N/A')}")
-    logger.info(f"   arXiv ID: {row.get('arxiv_id', 'N/A')}")
-    logger.info(f"   Chunk ID: {row.get('id', 'N/A')}")
+    logger.info(f"\n{i}. Case: {row.get('case_id', 'N/A')}")
+    logger.info(f"   ID: {row.get('id', 'N/A')}")
     logger.info(f"   Text preview: {row.get('text', '')[:200]}...")
     logger.info(f"   Score: {row.get('score', 'N/A'):.4f}")
 
@@ -251,28 +257,27 @@ for i, row in enumerate(parse_vector_search_results(results), 1):
 
 # COMMAND ----------
 
-# Search with metadata filters
-query = "neural networks and deep learning"
+# Search with metadata filters (not the best filter, I have poor metadata)
+query = "Do I have documents with 5% royalty?"
 
-# Filter for papers from 2024 or later
+# Filter only in royalty agreement documents
 results = index.similarity_search(
     query_text=query,
-    columns=["text", "id", "title", "year", "authors"],
-    filters={"year": "2026"},  # Only papers from 2024
+    columns=["text", "id", "case_id", "document_id"],
+    filters={"case_id": "case_50"},
     num_results=3,
 )
 
 logger.info(f"Query: {query}")
-logger.info("Filter: year = 2026\n")
+logger.info("Filter: case id = 50\n")
 logger.info("Results:")
 logger.info("=" * 80)
 
 for i, row in enumerate(parse_vector_search_results(results), 1):
-    logger.info(f"\n{i}. {row.get('title', 'N/A')}")
-    logger.info(f"   Year: {row.get('year', 'N/A')}")
-    authors = row.get("authors", "N/A")
-    logger.info(f"   Authors: {str(authors)[:100]}...")
-    logger.info(f"   Text: {row.get('text', '')[:150]}...")
+    logger.info(f"\n{i}. Case: {row.get('case_id', 'N/A')}")
+    logger.info(f"   Document id: {row.get('document_id', 'N/A')}")
+    logger.info(f"   ID: {row.get('id', 'N/A')}")
+    logger.info(f"   Text preview: {row.get('text', '')[:200]}...")
 
 # COMMAND ----------
 
@@ -348,7 +353,7 @@ for i, row in enumerate(parse_vector_search_results(results), 1):
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 9. Reranking for Higher Precision
+# MAGIC ## 9. Reranking for Higher Precision (not available free edition)
 # MAGIC
 # MAGIC ### The Two-Stage Retrieval Pattern
 # MAGIC
@@ -384,15 +389,15 @@ for i, row in enumerate(parse_vector_search_results(results), 1):
 
 # COMMAND ----------
 
-# Search with reranking
-query = "large language models for code generation"
+# Search with reranking (not available free edition)
+query = "Do I have documents with 5% royalty?"
 
 results = index.similarity_search(
     query_text=query,
-    columns=["text", "id", "title", "summary"],
+    columns=["text", "id", "case_id"],
     num_results=5,
     query_type="hybrid",
-    reranker=DatabricksReranker(columns_to_rerank=["text", "title", "summary"]),
+    reranker=DatabricksReranker(columns_to_rerank=["text"]),
 )
 
 logger.info(f"Query: {query}")
@@ -401,9 +406,8 @@ logger.info("Results:")
 logger.info("=" * 80)
 
 for i, row in enumerate(parse_vector_search_results(results), 1):
-    logger.info(f"\n{i}. {row.get('title', 'N/A')}")
-    logger.info(f"   Summary: {row.get('summary', '')[:150]}...")
-    logger.info(f"   Text: {row.get('text', '')[:150]}...")
+    logger.info(f"\n{i}. {row.get('case_id', 'N/A')}")
+    logger.info(f"   Text: {row.get('text', '')[:200]}...")
 
 # COMMAND ----------
 

@@ -1,12 +1,12 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # Data Processing Pipeline
+# MAGIC # Data Processing Pipeline (Job)
 # MAGIC
-# MAGIC This notebook processes arXiv papers and syncs the vector search index.
+# MAGIC This notebook processes valuation papers and syncs the vector search index.
 # MAGIC Runs on a schedule to keep the knowledge base up to date.
 # MAGIC
 # MAGIC Pipeline steps:
-# MAGIC 1. Download new PDFs from arXiv
+# MAGIC 1. Download new PDFs from Google Drive
 # MAGIC 2. Parse PDFs with AI Parse Documents
 # MAGIC 3. Extract and clean chunks
 # MAGIC 4. Sync vector search index
