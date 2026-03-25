@@ -377,24 +377,3 @@ q3 = "What are the computational costs?"
 a3 = rag.chat(q3)
 logger.info(f"Q: {q3}")
 logger.info(f"A: {a3}")
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## Summary
-# MAGIC
-# MAGIC In this notebook, we learned:
-# MAGIC
-# MAGIC 1. ✅ What RAG is and why it's useful
-# MAGIC 2. ✅ How to retrieve documents using Vector Search
-# MAGIC 3. ✅ How to build prompts with retrieved context
-# MAGIC 4. ✅ How to combine retrieval and generation
-# MAGIC 5. ✅ How to build a RAG system with conversation history
-# MAGIC
-# MAGIC **Key Takeaways:**
-# MAGIC - RAG grounds LLM responses in actual data
-# MAGIC - Vector search enables semantic retrieval
-# MAGIC - Context window management is important
-# MAGIC - Conversation history enables follow-up questions
-# MAGIC
-# MAGIC **Next**: Lecture 3.1 - Custom Functions & Tools for Agents

@@ -306,7 +306,7 @@ logger.info(f"2. {search_papers_tool.name}")
 # MAGIC ## 6. Tool Registry Pattern
 
 # COMMAND ----------
-
+from typing import Any
 class ToolRegistry:
     """Registry for managing agent tools."""
     
@@ -336,6 +336,11 @@ class ToolRegistry:
     def list_tools(self) -> list[str]:
         """List all registered tool names."""
         return list(self._tools.keys())
+    
+    def get_all_tools(self) -> list[ToolInfo]:
+        """Get all tools as a list."""
+        return list(self._tools.values())
+ 
 
 # Create registry and register tools
 registry = ToolRegistry()
@@ -372,7 +377,7 @@ logger.info(f"Search result:\n{search_result}")
 # MAGIC %md
 # MAGIC ## 8. Best Practices for Tool Design
 # MAGIC
-# MAGIC ### ✅ Do:
+# MAGIC ### Do:
 # MAGIC 1. **Clear descriptions**: Help the LLM understand when to use the tool
 # MAGIC 2. **Type hints**: Use proper Python type hints
 # MAGIC 3. **Error handling**: Handle errors gracefully
@@ -380,7 +385,7 @@ logger.info(f"Search result:\n{search_result}")
 # MAGIC 6. **Validate inputs**: Check parameters before execution
 # MAGIC 7. **Document parameters**: Clear parameter descriptions
 # MAGIC
-# MAGIC ### ❌ Don't:
+# MAGIC ### Don't:
 # MAGIC 1. Create tools that are too complex
 # MAGIC 2. Return unstructured or ambiguous data
 # MAGIC 3. Forget error handling
@@ -560,6 +565,11 @@ agent = SimpleAgent(
     tools=[calculator_tool, search_papers_tool]
 )
 
+# agent = SimpleAgent(
+# llm_endpoint=cfg.llm_endpoint, 
+# system_prompt="You are a helpful assistant. Use the available tools to answer questions.", 
+# tools=registry.get_all_tools())
+
 logger.info("✓ Agent created with tools:")
 for tool_name in agent._tools_dict.keys():
     logger.info(f"  - {tool_name}")
@@ -581,23 +591,3 @@ logger.info("=" * 80)
 
 response = agent.chat("Find papers about attention mechanisms")
 logger.info(f"Agent response: {response}")
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## Summary
-# MAGIC
-# MAGIC In this notebook, we learned:
-# MAGIC
-# MAGIC 1. ✅ What agent tools are and why they're important
-# MAGIC 2. ✅ Tool specification format (OpenAI function calling)
-# MAGIC 3. ✅ Creating custom functions as tools
-# MAGIC 4. ✅ Vector search as a tool
-# MAGIC 5. ✅ Tool registry pattern for managing tools
-# MAGIC 6. ✅ Executing tools programmatically
-# MAGIC 7. ✅ Best practices for tool design
-# MAGIC 8. ✅ Common tool patterns
-# MAGIC 9. ✅ Testing tools
-# MAGIC 10. ✅ **Building a simple agent with tool calling loop**
-# MAGIC
-# MAGIC **Next**: Lecture 3.2 - MCP Integration

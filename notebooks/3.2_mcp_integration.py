@@ -329,30 +329,7 @@ if mcp_tools:
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 10. Best Practices
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ### ✅ Do:
-# MAGIC 1. **Use MCP for standard operations** (search, query, etc.)
-# MAGIC 2. **Cache MCP tools** (don't recreate on every request)
-# MAGIC 3. **Handle MCP errors gracefully**
-# MAGIC 4. **Monitor MCP tool usage**
-# MAGIC 5. **Combine MCP with custom tools** when needed
-# MAGIC 6. **Test MCP tools** before deploying agents
-# MAGIC
-# MAGIC ### ❌ Don't:
-# MAGIC 1. Recreate MCP clients on every call
-# MAGIC 2. Ignore MCP server availability
-# MAGIC 3. Hardcode MCP URLs (use configuration)
-# MAGIC 4. Forget to handle authentication
-# MAGIC 5. Use MCP for custom business logic
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## 11. Troubleshooting MCP
+# MAGIC ## 10. Troubleshooting MCP
 
 # COMMAND ----------
 
@@ -494,22 +471,3 @@ logger.info("=" * 80)
 
 response = agent.chat("Find papers about transformer architectures")
 logger.info(f"Agent response: {response}")
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## Summary
-# MAGIC
-# MAGIC In this notebook, we learned:
-# MAGIC
-# MAGIC 1. ✅ What Model Context Protocol (MCP) is
-# MAGIC 2. ✅ Differences between MCP and custom functions
-# MAGIC 3. ✅ Databricks MCP servers (Vector Search, Genie)
-# MAGIC 4. ✅ Connecting to MCP servers
-# MAGIC 5. ✅ Listing and calling MCP tools
-# MAGIC 6. ✅ Converting MCP tools to agent tools
-# MAGIC 7. ✅ Benefits of using MCP
-# MAGIC 8. ✅ Best practices and troubleshooting
-# MAGIC 9. ✅ **Using MCP tools with an agent**
-# MAGIC
-# MAGIC **Next**: Lecture 3.3 - Session Memory with Lakebase
