@@ -11,7 +11,7 @@ from pyspark.sql import SparkSession
 
 class ProjectConfig(BaseModel):
     """Project configuration model."""
-
+    usage_policy_id: str = Field(..., description="Usage policy id")
     catalog: str = Field(..., description="Unity Catalog name")
     db_schema: str = Field(..., description="Schema name", alias="schema")
     volume: str = Field(..., description="Volume name")

@@ -186,3 +186,5 @@ message = w.genie.create_message_and_wait(
     content="Return the list of authors of the last 10 papers published")
 
 message.as_dict()
+
+# COMMAND ----------

@@ -23,6 +23,7 @@ class LakebaseMemory:
         self.host = host
         self.instance_name = instance_name
         self._pool: ConnectionPool | None = None
+        self.client_id = os.getenv("DATABRICKS_CLIENT_ID", None)
 
     def _get_connection_string(self) -> str:
         """Build connection string for Lakebase.
@@ -33,11 +34,9 @@ class LakebaseMemory:
         """
         w = WorkspaceClient()
 
-        # Determine username based on auth type
-        client_id = os.environ.get("DATABRICKS_CLIENT_ID")
-        if client_id:
+        if self.client_id:
             # SPN authentication
-            username = client_id
+            username = self.client_id
         else:
             # User authentication (local testing)
             user = w.current_user.me()
