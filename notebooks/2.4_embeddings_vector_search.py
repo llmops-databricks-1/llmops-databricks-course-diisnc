@@ -115,7 +115,8 @@ schema = cfg.schema
 vs_manager = VectorSearchManager(
     config=cfg,
     endpoint_name=cfg.vector_search_endpoint,
-    embedding_model=cfg.embedding_endpoint
+    embedding_model=cfg.embedding_endpoint,
+    usage_policy_id=cfg.usage_policy_id
 )
 
 logger.info(f"Vector Search Endpoint: {vs_manager.endpoint_name}")
