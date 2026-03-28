@@ -1,4 +1,6 @@
-"""Basic tests to ensure the package is properly installed."""
+"""Basic tests to ensure the package is properly installed.
+TODO: develop more tests.
+"""
 
 import importlib
 

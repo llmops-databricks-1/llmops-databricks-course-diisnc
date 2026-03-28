@@ -50,7 +50,7 @@ logger.info(f"Catalog: {cfg.catalog}, Schema: {cfg.schema}, Volume: {cfg.volume}
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### 2. Download PDFs, Parse, and Create Chunks
+# MAGIC ### 2. Download PDFs, Parse, Translate, and Create Chunks
 # MAGIC
 # MAGIC The `DataProcessor` class from `valuation_curator.data_processor` handles the full
 # MAGIC pipeline:
@@ -60,7 +60,10 @@ logger.info(f"Catalog: {cfg.catalog}, Schema: {cfg.schema}, Volume: {cfg.volume}
 # MAGIC 3. Upsert metadata into `customs_valuation_metadata`
 # MAGIC 4. Parse PDFs using AI Parse Documents (`ai_parse_document`) into
 # MAGIC `ai_parsed_docs_table`
-# MAGIC 5. Write chunks to `chunks_table` table with Change Data Feed enabled
+# MAGIC 5. Detect source language and translate non-English parsed content to English
+# MAGIC    (`parsed_content_translated`, `source_language`, `translation_applied`)
+# MAGIC 6. Write English chunks to `chunks_table` with Change Data Feed enabled
+# MAGIC    - 6.1: enrich metadata with pdf information (e.g., invoice_total)
 # MAGIC
 # MAGIC The same class is used in `resources/deployment_scripts/process_data.py`
 # MAGIC for scheduled runs.

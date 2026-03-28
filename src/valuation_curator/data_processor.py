@@ -1,33 +1,33 @@
 """
+NOTE: this class is too big and could be splitted in multiple ones according to logic,
+but I'll keep it to match the structure of the course.
 Google Drive folder
     ↓ (download_and_store_papers)
 PDFs in Volume + customs_valuation_metadata table
-   ↓ (parse_pdfs_with_ai)
+    ↓ (parse_pdfs_with_ai)
 ai_parsed_docs_table (JSON)
-   ↓ (process_chunks)
+    ↓ (translate_parsed_docs)
+    ↓ (process_chunks + metadata enrichment)
 chunks_table (clean text + metadata)
-   ↓ (VectorSearchManager - separate class) (2.4 notebook)
+    ↓ (VectorSearchManager - separate class) (2.4 notebook)
 Vector Search Index (embeddings)
 """
 
 import json
 import datetime
+import html
 import os
 import re
 import shutil
 import time
 from urllib import parse, request
+import mlflow.deployments
 
 from valuation_curator.config import ProjectConfig
 from loguru import logger
 from pyspark.sql import SparkSession
 from pyspark.sql import types as T
-from pyspark.sql.functions import (
-    col,
-    concat_ws,
-    explode,
-    udf,
-)
+from pyspark.sql.functions import col, concat_ws, explode, first, udf
 from pyspark.sql.types import ArrayType, StringType, StructField, StructType
 
 
@@ -40,7 +40,9 @@ class DataProcessor:
         - Downloading case PDFs into Databricks Volume
         - Upserting case metadata into `customs_valuation_metadata`
         - Parsing PDFs using `ai_parse_document`
-        - Extracting, cleaning, and saving text chunks to `chunks_table`
+        - Detecting source document language and translating parsed content to English
+        - Extracting pdf metadata from parsed content
+        - Extracting and cleaning English chunks to `chunks_table`
 
     Incremental Logic:
         Each run is identified by a `run_processed` timestamp (format: YYYYMMDDHHMM).
@@ -49,20 +51,31 @@ class DataProcessor:
         Only Drive folders modified after the watermark are fetched.
 
     Metadata Merge Semantics:
-        The metadata table is keyed by `id` (case folder name, e.g. case_00).
+        The metadata table key is `id` (case folder name, e.g. case_00).
         - Existing rows: updated (processed, volume_path)
         - New rows: inserted
-        Fields `processed` and `volume_path` are set here and must not be overwritten
-        by the bootstrap notebook (1.3).
 
     Parse Scope:
         `parse_pdfs_with_ai()` only processes cases where `processed == run_processed`,
         i.e. cases downloaded in the current run.
 
+    Translation Scope:
+        `translate_parsed_docs()` processes parsed rows for `processed == run_processed`
+        and writes:
+        - `parsed_content_translated` (translated JSON structure)
+        - `source_language` (ISO 639-1 code, e.g. en/es/de)
+        - `translation_applied` (True when source language is not English)
+        Translation strategy is document-level, before chunking:
+        - 1 LLM call per document for language detection + translation
+        - Could've used cheap python detection method first and reduce LLM calls to
+        non-English docs, but it was not working decently.
+
     Output Tables:
         - `customs_valuation_metadata`: case-level metadata (upsert)
-        - `ai_parsed_docs_table`: raw AI-parsed output per PDF (append)
-        - `chunks_table`: cleaned text chunks joined with metadata (append, CDF enabled)
+        - `ai_parsed_docs_table`: raw AI-parsed output per PDF (append) + translated
+           content + language metadata
+        - `chunks_table`: cleaned English chunks + language metadata + business metadata
+           (append, CDF enabled)
 
     Recovery / Backfill:
         Use notebook `1.3_valuation_data_ingestion` to register Volume files that
@@ -70,8 +83,8 @@ class DataProcessor:
         chunk any newly registered cases.
 
     Note:
-        `ai_parse_document` requires a Databricks runtime context and will not run
-        locally. Secrets for Google Drive must be configured under scope='gdrive'.
+        - `ai_parse_document` will not run locally.
+        - Secrets for Google Drive must be configured under scope='gdrive'.
     """
 
     def __init__(self, spark: SparkSession, config: ProjectConfig) -> None:
@@ -101,6 +114,7 @@ class DataProcessor:
         # where result of ai_parse_document will be stored
         self.parsed_table = f"{self.catalog}.{self.schema}.ai_parsed_docs_table"
 
+    # ----------------------------- Google Drive Interaction -----------------------------
     @staticmethod
     def _to_drive_timestamp(value: datetime.datetime) -> str:
         """Convert datetime to Google Drive RFC3339 UTC format."""
@@ -391,6 +405,7 @@ class DataProcessor:
         logger.info(f"Merged {len(records)} case records into {self.docs_table}")
         return records
 
+    # ---------------------------------- Parse Content -----------------------------------
     def parse_pdfs_with_ai(self) -> None:
         """
         Parse PDFs using ai_parse_document and store in ai_parsed_docs table.
@@ -402,7 +417,10 @@ class DataProcessor:
             CREATE TABLE IF NOT EXISTS {self.parsed_table} (
                 path STRING,
                 parsed_content STRING,
-                processed LONG
+                processed LONG,
+                parsed_content_translated STRING,
+                source_language STRING,
+                translation_applied BOOLEAN
             )
         """
         )
@@ -422,7 +440,11 @@ class DataProcessor:
             case_path = row["volume_path"]
             self.spark.sql(
                 f"""
-                INSERT INTO {self.parsed_table}
+                INSERT INTO {self.parsed_table} (
+                    path,
+                    parsed_content,
+                    processed
+                )
                 SELECT
                     path,
                     ai_parse_document(content) AS parsed_content,
@@ -438,6 +460,445 @@ class DataProcessor:
             f"Parsed PDFs for {len(current_case_paths)} cases into {self.parsed_table}"
         )
 
+    # -------------------------------- Translation Logic ---------------------------------
+    def translate_parsed_docs(self) -> None:
+        """
+        Detect source language and translate to English in one LLM call.
+
+        Writes results into:
+          - parsed_content_translated
+          - source_language
+          - translation_applied
+        """
+
+        existing_columns = {
+            row["col_name"].lower()
+            for row in self.spark.sql(f"SHOW COLUMNS IN {self.parsed_table}").collect()
+        }
+
+        for column_def in (
+            ("parsed_content_translated", "STRING"),
+            ("source_language", "STRING"),
+            ("translation_applied", "BOOLEAN"),
+        ):
+            column_name, column_type = column_def
+            if column_name.lower() not in existing_columns:
+                self.spark.sql(
+                    f"ALTER TABLE {self.parsed_table} "
+                    f"ADD COLUMN {column_name} {column_type}"
+                )
+
+        rows = self.spark.sql(
+            f"""
+            SELECT path, parsed_content
+            FROM {self.parsed_table}
+            WHERE processed = {self.run_processed}
+                AND parsed_content_translated IS NULL
+            """
+        ).collect()
+
+        if len(rows) == 0:
+            logger.info("No documents to translate for this run.")
+            return
+
+        client = mlflow.deployments.get_deploy_client("databricks")
+        endpoint_name = self.cfg.llm_endpoint
+
+        translated_rows = []
+        for row in rows:
+            translated_json, source_language, translation_applied = (
+                self._detect_and_translate_document(
+                    row["parsed_content"], endpoint_name, client
+                )
+            )
+
+            translated_rows.append(
+                {
+                    "path": row["path"],
+                    "parsed_content_translated": translated_json,
+                    "source_language": source_language,
+                    "translation_applied": translation_applied,
+                }
+            )
+
+        schema = T.StructType(
+            [
+                T.StructField("path", T.StringType(), False),
+                T.StructField("parsed_content_translated", T.StringType(), True),
+                T.StructField("source_language", T.StringType(), True),
+                T.StructField("translation_applied", T.BooleanType(), True),
+            ]
+        )
+        translated_df = self.spark.createDataFrame(translated_rows, schema=schema)
+        translated_df.createOrReplaceTempView("translation_results")
+
+        self.spark.sql(
+            f"""
+            MERGE INTO {self.parsed_table} target
+            USING translation_results source
+            ON target.path = source.path
+            WHEN MATCHED THEN UPDATE SET
+              target.parsed_content_translated = source.parsed_content_translated,
+              target.source_language = source.source_language,
+              target.translation_applied = source.translation_applied
+            """
+        )
+        non_english_count = sum(1 for r in translated_rows if r["translation_applied"])
+        logger.info(
+            f"Analyzed {len(translated_rows)} documents, "
+            f"{non_english_count} were non-English and translated to English."
+        )
+
+    @staticmethod
+    def _parse_llm_translation_json(content: str) -> dict | None:
+        """Parse LLM output into a JSON object, supporting common wrappers.
+
+        Attempts in order:
+        1) raw content
+        2) JSON fenced code blocks
+        3) first object-looking `{...}` slice
+        """
+        text = (content or "").strip()
+        if not text:
+            return None
+
+        candidates = [text]
+        fenced_blocks = re.findall(
+            r"```(?:json)?\s*([\s\S]*?)\s*```", text, flags=re.IGNORECASE
+        )
+        candidates.extend(block.strip() for block in fenced_blocks if block.strip())
+
+        object_match = re.search(r"\{[\s\S]*\}", text)
+        if object_match:
+            candidates.append(object_match.group(0).strip())
+
+        seen = set()
+        for candidate in candidates:
+            if not candidate or candidate in seen:
+                continue
+            seen.add(candidate)
+            try:
+                parsed_candidate = json.loads(candidate)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(parsed_candidate, dict):
+                return parsed_candidate
+
+        return None
+
+    def _detect_and_translate_document(
+        self,
+        parsed_content_json: str,
+        endpoint_name: str,
+        client,
+    ) -> tuple[str, str, bool]:
+        """Detect source language and translate content in one LLM call.
+
+        Sends to LLM text, table, and section_header elements as a JSON array with
+        their original idx. Translations are merged back by idx, leaving all
+        other element fields and non-translatable elements untouched.
+
+        Returns:
+            (translated_json, source_language, translation_applied)
+        """
+        parsed_dict = json.loads(parsed_content_json)
+        elements = parsed_dict.get("document", {}).get("elements", [])
+
+        translatable_items = [
+            {
+                "idx": idx,
+                "type": element.get("type"),
+                "content": element.get("content", "").strip(),
+            }
+            for idx, element in enumerate(elements)
+            if element.get("type") in ("text", "table", "section_header")
+            and element.get("content", "").strip()
+        ]
+
+        if not translatable_items:
+            return parsed_content_json, "en", False
+
+        payload = json.dumps(translatable_items, ensure_ascii=False)
+
+        try:
+            response = client.predict(
+                endpoint=endpoint_name,
+                inputs={
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": (
+                                "You are a JSON transformer. Return only one valid JSON "
+                                "object that matches the requested schema."
+                            ),
+                        },
+                        {
+                            "role": "user",
+                            "content": (
+                                "Detect source language and translate content "
+                                "to English.\n"
+                                "Input is a JSON array with fields idx, type, content.\n"
+                                "Output schema (exact keys):\n"
+                                '{"source_language":"<iso-639-1>",'
+                                '"items":[{"idx":0,"content":"..."}]}\n'
+                                "Rules:\n"
+                                "- JSON only (no markdown, code fences, or prose).\n"
+                                "- Keep one output item per input item, preserving "
+                                "the same idx values.\n"
+                                "- Translate only content; keep idx unchanged.\n"
+                                "- source_language must be lowercase ISO-639-1.\n"
+                                "- If source_language is en, keep content unchanged.\n\n"
+                                f"{payload}"
+                            ),
+                        },
+                    ]
+                },
+            )
+        except Exception as error:
+            error_message = str(error)
+            if "does not exist" in error_message.lower():
+                raise ValueError(
+                    "Configured LLM endpoint does not exist: "
+                    f"'{endpoint_name}'. Update 'llm_endpoint' in "
+                    "project_config.yml to a valid Model Serving endpoint."
+                ) from error
+            raise
+
+        content = str(response["choices"][0]["message"].get("content", "")).strip()
+
+        # JSON output tends to be error-prone
+        result = self._parse_llm_translation_json(content)
+
+        # in case of JSON output errors
+        if result is None:
+            preview = content[:300].replace("\n", "\\n")
+            logger.warning(
+                "Could not parse LLM translation response as JSON. "
+                "Returning original document unchanged. Preview: {}",
+                preview,
+            )
+            return parsed_content_json, "en", False
+
+        source_language = str(result.get("source_language", "en")).strip().lower()
+        if not source_language:
+            source_language = "en"
+
+        # if source language English, skip translation and return original content
+        if source_language == "en":
+            return parsed_content_json, source_language, False
+
+        translated_items = result.get("items", [])
+        translated_by_idx = {}
+        for item in translated_items:
+            if "idx" not in item or "content" not in item:
+                continue
+            try:
+                item_idx = int(item["idx"])
+            except (TypeError, ValueError):
+                continue
+            translated_by_idx[item_idx] = str(item["content"]).strip()
+
+        if not translated_by_idx:
+            logger.warning(
+                "LLM translation response had no valid translated items. "
+                "Returning original document unchanged."
+            )
+            return parsed_content_json, source_language, False
+
+        for idx, element in enumerate(elements):
+            if idx in translated_by_idx:
+                element["content"] = translated_by_idx[idx]
+
+        return json.dumps(parsed_dict), source_language, True
+
+    # ------------------------------- Metadata Extraction --------------------------------
+    @staticmethod
+    def _extract_invoice_metadata(
+        parsed_content_json: str,
+        amount_col: int,
+        currency_col: int,
+    ) -> tuple[float | None, str | None]:
+        """From invoice final HTML table last row, read amount/currency by column."""
+        if not (1 <= amount_col <= 9 and 1 <= currency_col <= 9):
+            return None, None
+
+        parsed_dict = json.loads(parsed_content_json)
+
+        elements = parsed_dict.get("document", {}).get("elements", [])
+        table_elements = [
+            str(element.get("content", "")).strip()
+            for element in elements
+            if element.get("type") == "table" and str(element.get("content", "")).strip()
+        ]
+        if not table_elements:
+            return None, None
+
+        final_table_html = table_elements[-1]
+        rows = re.findall(
+            r"<tr\b[^>]*>([\s\S]*?)</tr>",
+            final_table_html,
+            flags=re.IGNORECASE,
+        )
+        if not rows:
+            return None, None
+
+        last_row_html = rows[-1]
+        raw_cells = re.findall(
+            r"<t[dh]\b[^>]*>([\s\S]*?)</t[dh]>",
+            last_row_html,
+            flags=re.IGNORECASE,
+        )
+        if not raw_cells:
+            return None, None
+
+        cells = [
+            re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", cell))).strip()
+            for cell in raw_cells
+        ]
+
+        try:
+            amount = float(cells[amount_col - 1])
+            currency = cells[currency_col - 1].upper()
+        except Exception as error:
+            logger.warning(
+                "Failed to extract total/currency with amount_col={} "
+                "currency_col={} cells={}. Error: {}",
+                amount_col,
+                currency_col,
+                cells,
+                error,
+            )
+            return None, None
+
+        return amount, currency
+
+    @staticmethod
+    def _extract_royalty_metadata(parsed_content_json: str) -> float | None:
+        """Extract first percentage value found in content (e.g. 5%, 7,5%)."""
+        parsed_dict = json.loads(parsed_content_json)
+
+        elements = parsed_dict.get("document", {}).get("elements", [])
+        for element in elements:
+            text = str(element.get("content", ""))
+            match = re.search(r"(\d+(?:[.,]\d+)?)\s*%", text)
+            if match:
+                return float(match.group(1).replace(",", "."))
+
+        return None
+
+    @staticmethod
+    def _extract_declaration_metadata(parsed_content_json: str) -> dict:
+        """Extract declaration values from final table using label-based matching."""
+        result = {
+            "declaration_invoice_total": None,
+            "declaration_tax_A": None,
+            "declaration_tax_B": None,
+            "declaration_VAT": None,
+            "declaration_royalty": None,
+            "declaration_total": None,
+            "declaration_currency": None,
+        }
+
+        parsed_dict = json.loads(parsed_content_json)
+        elements = parsed_dict.get("document", {}).get("elements", [])
+        table_elements = [
+            str(element.get("content", "")).strip()
+            for element in elements
+            if element.get("type") == "table" and str(element.get("content", "")).strip()
+        ]
+        if not table_elements:
+            return result
+
+        final_table_html = table_elements[-1]
+        rows_html = re.findall(
+            r"<tr\b[^>]*>([\s\S]*?)</tr>",
+            final_table_html,
+            flags=re.IGNORECASE,
+        )
+        if not rows_html:
+            return result
+
+        rows = [
+            [
+                re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", cell))).strip()
+                for cell in re.findall(
+                    r"<t[dh]\b[^>]*>([\s\S]*?)</t[dh]>",
+                    row_html,
+                    flags=re.IGNORECASE,
+                )
+            ]
+            for row_html in rows_html
+        ]
+        rows = [row for row in rows if row]
+        if not rows:
+            return result
+
+        # Drop header row (row 1) and parse only data rows
+        data_rows = rows[1:]
+
+        for row in data_rows:
+            if len(row) < 3:
+                continue
+
+            label = row[0].strip().lower()
+            amount = float(row[2].strip())
+
+            if "invoice" in label:
+                result["declaration_invoice_total"] = amount
+            elif "tax a" in label:
+                result["declaration_tax_A"] = amount
+            elif "tax b" in label:
+                result["declaration_tax_B"] = amount
+            elif "vat" in label:
+                result["declaration_VAT"] = amount
+            elif "royalty" in label:
+                result["declaration_royalty"] = amount
+            elif "total" in label:
+                result["declaration_total"] = amount
+
+        last_row = rows[-1]
+        if len(last_row) >= 4:
+            result["declaration_currency"] = last_row[3].strip().upper() or None
+
+        return result
+
+    @staticmethod
+    def _extract_structured_metadata(path: str, parsed_content_json: str) -> dict:
+        """Extract documents metadata fields by document type."""
+        filename = os.path.basename(path).lower()
+        result = {
+            "invoice_total": None,
+            "invoice_currency": None,
+            "declaration_invoice_total": None,
+            "declaration_tax_A": None,
+            "declaration_tax_B": None,
+            "declaration_VAT": None,
+            "declaration_royalty": None,
+            "declaration_total": None,
+            "declaration_currency": None,
+            "royalty_percentage": None,
+        }
+
+        if filename.startswith("invoice_"):
+            amount, currency = DataProcessor._extract_invoice_metadata(
+                parsed_content_json,
+                amount_col=6,
+                currency_col=7,
+            )
+            result["invoice_total"] = amount
+            result["invoice_currency"] = currency
+        elif filename.startswith("declaration_"):
+            result.update(
+                DataProcessor._extract_declaration_metadata(parsed_content_json)
+            )
+        elif filename.startswith("royalty_"):
+            result["royalty_percentage"] = DataProcessor._extract_royalty_metadata(
+                parsed_content_json
+            )
+
+        return result
+
+    # ------------------------------------- Chunks ---------------------------------------
     @staticmethod
     def _extract_chunks(parsed_content_json: str) -> list[tuple[str, str]]:
         """
@@ -468,12 +929,6 @@ class DataProcessor:
     def _extract_cases_id(path: str) -> str:
         """
         Extract case ID from file path.
-
-        Args:
-            path: File path containing case directory (e.g. "/.../case_00/invoice_00.pdf")
-
-        Returns:
-            Case ID extracted from the path
         """
         parts = path.replace("\\", "/").split("/")
         for part in reversed(parts):
@@ -485,12 +940,6 @@ class DataProcessor:
     def _extract_document_id(path: str) -> str:
         """
         Extract document ID from file path.
-
-        Args:
-            path: File path containing PDF filename
-
-        Returns:
-            Document ID (filename without .pdf extension)
         """
         return os.path.basename(path).replace(".pdf", "")
 
@@ -526,24 +975,61 @@ class DataProcessor:
             f"{self.parsed_table} for run {self.run_processed}"
         )
 
-        df = self.spark.table(self.parsed_table).where(
-            f"processed = {self.run_processed}"
+        df = (
+            self.spark.table(self.parsed_table)
+            .where(f"processed = {self.run_processed}")
+            .where(col("parsed_content_translated").isNotNull())
         )
 
-        # Define schema for the extracted chunks
-        chunk_schema = ArrayType(
-            StructType(
-                [
-                    StructField("chunk_id", StringType(), True),
-                    StructField("content", StringType(), True),
-                ]
-            )
+        # Define one base schema used for chunk and structured metadata
+        chunk_schema = StructType(
+            [
+                StructField("chunk_id", StringType(), True),
+                StructField("content", StringType(), True),
+                StructField("invoice_total", T.DoubleType(), True),
+                StructField("invoice_currency", T.StringType(), True),
+                StructField("declaration_invoice_total", T.DoubleType(), True),
+                StructField("declaration_tax_A", T.DoubleType(), True),
+                StructField("declaration_tax_B", T.DoubleType(), True),
+                StructField("declaration_VAT", T.DoubleType(), True),
+                StructField("declaration_royalty", T.DoubleType(), True),
+                StructField("declaration_total", T.DoubleType(), True),
+                StructField("declaration_currency", T.StringType(), True),
+                StructField("royalty_percentage", T.DoubleType(), True),
+            ]
         )
 
-        extract_chunks_udf = udf(self._extract_chunks, chunk_schema)
+        extract_chunks_udf = udf(
+            self._extract_chunks,
+            ArrayType(
+                StructType(
+                    [
+                        chunk_schema["chunk_id"],
+                        chunk_schema["content"],
+                    ]
+                )
+            ),
+        )
         extract_cases_id_udf = udf(self._extract_cases_id, StringType())
         extract_document_id_udf = udf(self._extract_document_id, StringType())
         clean_chunk_udf = udf(self._clean_chunk, StringType())
+        extract_structured_metadata_udf = udf(
+            self._extract_structured_metadata,
+            StructType(
+                [
+                    chunk_schema["invoice_total"],
+                    chunk_schema["invoice_currency"],
+                    chunk_schema["declaration_invoice_total"],
+                    chunk_schema["declaration_tax_A"],
+                    chunk_schema["declaration_tax_B"],
+                    chunk_schema["declaration_VAT"],
+                    chunk_schema["declaration_royalty"],
+                    chunk_schema["declaration_total"],
+                    chunk_schema["declaration_currency"],
+                    chunk_schema["royalty_percentage"],
+                ]
+            ),
+        )
 
         metadata_df = self.spark.table(self.docs_table).select(
             col("id").alias("case_id"),
@@ -552,16 +1038,68 @@ class DataProcessor:
             col("royalty_path"),
         )
 
-        # Create the transformed dataframe
+        # groupBy so values propagate to all documents in case_id level
+        case_structured_metadata_df = (
+            df.withColumn("case_id", extract_cases_id_udf(col("path")))
+            .withColumn(
+                "structured_metadata",
+                extract_structured_metadata_udf(
+                    col("path"), col("parsed_content_translated")
+                ),
+            )
+            .groupBy("case_id")
+            .agg(
+                first(col("structured_metadata.invoice_total"), ignorenulls=True).alias(
+                    "invoice_total"
+                ),
+                first(
+                    col("structured_metadata.invoice_currency"), ignorenulls=True
+                ).alias("invoice_currency"),
+                first(
+                    col("structured_metadata.declaration_invoice_total"),
+                    ignorenulls=True,
+                ).alias("declaration_invoice_total"),
+                first(
+                    col("structured_metadata.declaration_tax_A"), ignorenulls=True
+                ).alias("declaration_tax_A"),
+                first(
+                    col("structured_metadata.declaration_tax_B"), ignorenulls=True
+                ).alias("declaration_tax_B"),
+                first(col("structured_metadata.declaration_VAT"), ignorenulls=True).alias(
+                    "declaration_VAT"
+                ),
+                first(
+                    col("structured_metadata.declaration_royalty"),
+                    ignorenulls=True,
+                ).alias("declaration_royalty"),
+                first(
+                    col("structured_metadata.declaration_total"), ignorenulls=True
+                ).alias("declaration_total"),
+                first(
+                    col("structured_metadata.declaration_currency"),
+                    ignorenulls=True,
+                ).alias("declaration_currency"),
+                first(
+                    col("structured_metadata.royalty_percentage"), ignorenulls=True
+                ).alias("royalty_percentage"),
+            )
+        )
+
+        # Create the transformed dataframe (parsed_df base table)
         chunks_df = (
             df.withColumn("case_id", extract_cases_id_udf(col("path")))
             .withColumn("document_id", extract_document_id_udf(col("path")))
-            .withColumn("chunks", extract_chunks_udf(col("parsed_content")))
+            .withColumn(
+                "chunks",
+                extract_chunks_udf(col("parsed_content_translated")),
+            )
             .withColumn("chunk", explode(col("chunks")))
             .select(
                 col("case_id"),
                 col("document_id"),
                 col("path").alias("document_path"),
+                col("source_language"),
+                col("translation_applied"),
                 col("chunk.chunk_id").alias("chunk_id"),
                 clean_chunk_udf(col("chunk.content")).alias("text"),
                 concat_ws(
@@ -571,6 +1109,7 @@ class DataProcessor:
                     col("chunk.chunk_id"),
                 ).alias("id"),
             )
+            .join(case_structured_metadata_df, "case_id", "left")
             .join(metadata_df, "case_id", "left")
             .withColumn(
                 "metadata",
@@ -585,7 +1124,9 @@ class DataProcessor:
 
         # Write to table
         chunks_table = f"{self.catalog}.{self.schema}.chunks_table"
-        chunks_df.write.mode("append").saveAsTable(chunks_table)
+        chunks_df.write.option("mergeSchema", "true").mode("append").saveAsTable(
+            chunks_table
+        )
         logger.info(f"Saved chunks to {chunks_table}")
 
         # Enable Change Data Feed: important since vector search index will be updated
@@ -601,7 +1142,7 @@ class DataProcessor:
 
     def process_and_save(self) -> None:
         """
-        Complete workflow: download case PDFs, parse, and process chunks.
+        Complete workflow: download case PDFs, parse, translate and process chunks.
         """
         # Step 1: Download case files and store metadata
         records = self.download_and_store_papers()
@@ -616,6 +1157,10 @@ class DataProcessor:
         # extract them (done in next step)
         self.parse_pdfs_with_ai()
         logger.info("Parsed documents.")
+
+        # [NEW] Step 2b: Detect document language and translate to English
+        self.translate_parsed_docs()
+        logger.info("Translated documents to English.")
 
         # Step 3: Process chunks
         self.process_chunks()
