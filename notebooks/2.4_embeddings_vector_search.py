@@ -257,19 +257,19 @@ for i, row in enumerate(parse_vector_search_results(results), 1):
 
 # COMMAND ----------
 
-# Search with metadata filters (not the best filter, I have poor metadata)
-query = "Do I have documents with 5% royalty?"
+# Search with metadata filters
+query = "Do I have documents with 3.5% royalty?"
 
-# Filter only in royalty agreement documents
+# Filter only spanish documents
 results = index.similarity_search(
     query_text=query,
     columns=["text", "id", "case_id", "document_id"],
-    filters={"case_id": "case_50"},
+    filters={"source_language": "es"},
     num_results=3,
 )
 
 logger.info(f"Query: {query}")
-logger.info("Filter: case id = 50\n")
+logger.info("Filter: source language = es\n")
 logger.info("Results:")
 logger.info("=" * 80)
 
@@ -332,11 +332,11 @@ for i, row in enumerate(parse_vector_search_results(results), 1):
 # COMMAND ----------
 
 # Hybrid search example
-query = "transformer architecture attention mechanism"
+query = "Do I have documents with 5% royalty?"
 
 results = index.similarity_search(
     query_text=query,
-    columns=["text", "id", "title"],
+    columns=["text", "id", "case_id"],
     num_results=5,
     query_type="hybrid",  # Enable hybrid search
 )
@@ -347,8 +347,10 @@ logger.info("Results:")
 logger.info("=" * 80)
 
 for i, row in enumerate(parse_vector_search_results(results), 1):
-    logger.info(f"\n{i}. {row.get('title', 'N/A')}")
-    logger.info(f"   Text: {row.get('text', '')[:200]}...")
+    logger.info(f"\n{i}. Case: {row.get('case_id', 'N/A')}")
+    logger.info(f"   ID: {row.get('id', 'N/A')}")
+    logger.info(f"   Text preview: {row.get('text', '')[:200]}...")
+    logger.info(f"   Score: {row.get('score', 'N/A'):.4f}")
 
 # COMMAND ----------
 
