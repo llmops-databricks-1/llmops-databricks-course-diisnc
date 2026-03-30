@@ -54,6 +54,9 @@ pythonpath = ["."]
 [tool.ruff]
 line-length = 90
 
+[tool.ruff.lint.per-file-ignores]
+"notebooks/2.2_pdf_parsing_ai_parse.py" = ["E501"]
+
 select = [
     "F",    # pyflakes rules
     "E",    # pycodestyle error rules
