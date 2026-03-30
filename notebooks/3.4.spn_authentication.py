@@ -1,5 +1,4 @@
 # Databricks notebook source
-# DO NOT RUN! For demonstration purposes!
 from databricks.sdk import WorkspaceClient
 from requests.auth import HTTPBasicAuth
 
@@ -9,26 +8,26 @@ client_id = "your client id"
 client_secret = "your client secret"
 account_id = "your account id"
 
-w.secrets.create_scope(scope="admin1")
-w.secrets.put_secret(scope="admin1", key="client_id", string_value=client_id)
-w.secrets.put_secret(scope="admin1", key="client_secret", string_value=client_secret)
-w.secrets.put_secret(scope="admin1", key="account_id", string_value=account_id)
+w.secrets.create_scope(scope="admin")
+w.secrets.put_secret(scope="admin", key="client_id", string_value=client_id)
+w.secrets.put_secret(scope="admin", key="client_secret", string_value=client_secret)
+w.secrets.put_secret(scope="admin", key="account_id", string_value=account_id)
 
 
 # COMMAND ----------
 import requests
 from databricks.sdk import WorkspaceClient
 from requests.auth import HTTPBasicAuth
+import urllib
 
 w = WorkspaceClient()
 
 # Admin credentials from secret scope
-admin_client_id = dbutils.secrets.get("admin1", "client_id")
-admin_client_secret = dbutils.secrets.get("admin1", "client_secret")
-account_id = dbutils.secrets.get("admin1", "account_id")
+admin_client_id = dbutils.secrets.get("admin", "client_id")
+admin_client_secret = dbutils.secrets.get("admin", "client_secret")
+account_id = dbutils.secrets.get("admin", "account_id")
 
 account_host = "https://accounts.cloud.databricks.com"
-instance_name = "arxiv-agent-instance"
 
 # Get account-level token
 token = requests.post(
@@ -47,6 +46,7 @@ secret_resp.raise_for_status()
 client_id = sp.application_id
 client_secret = secret_resp.json()["secret"]
 
+# COMMAND ----------
 # Step 2: Store credentials in a secret scope
 scope_name = "arxiv-agent-scope"
 try:
@@ -56,21 +56,54 @@ except Exception:
 w.secrets.put_secret(scope=scope_name, key="client_id", string_value=client_id)
 w.secrets.put_secret(scope=scope_name, key="client_secret", string_value=client_secret)
 
-# Step 3: Grant CAN_USE on database instance
-ws_token = w.tokens.create(lifetime_seconds=600).token_value
-requests.patch(
-    f"{w.config.host}/api/2.0/permissions/database-instances/{instance_name}",
-    headers={"Authorization": f"Bearer {ws_token}",
-             "Content-Type": "application/json"},
-    json={"access_control_list": [{"service_principal_name": client_id,
-                                   "permission_level": "CAN_USE"}]}
-).raise_for_status()
+# COMMAND ----------
+# Step 3: Add SPN role to project
+from databricks.sdk.service.postgres import (
+    PostgresAPI, Role, RoleAuthMethod, RoleIdentityType, RoleRoleSpec,
+)
+import psycopg
 
-# Step 4: Postgres role SQL — run in Lakebase SQL Editor for 'arxiv-agent-instance'
-lakebase_role_sql = f"""
-CREATE EXTENSION IF NOT EXISTS databricks_auth;
-SELECT databricks_create_role('{client_id}', 'SERVICE_PRINCIPAL');
-GRANT CONNECT ON DATABASE databricks_postgres TO "{client_id}";
-GRANT USAGE ON SCHEMA public TO "{client_id}";
-GRANT SELECT, INSERT ON public.session_messages TO "{client_id}";
-"""
+project_id = "arxiv-agent-lakebase"
+w = WorkspaceClient()
+pg_api = PostgresAPI(w.api_client)
+
+project = pg_api.get_project(name=f"projects/{project_id}")
+default_branch = next(iter(pg_api.list_branches(parent=project.name)))
+branch_parent = default_branch.name
+
+pg_api.create_role(
+    parent=branch_parent,
+    role=Role(
+        spec=RoleRoleSpec(
+            identity_type=RoleIdentityType.SERVICE_PRINCIPAL,
+            auth_method=RoleAuthMethod.LAKEBASE_OAUTH_V1,
+            postgres_role=client_id,
+        )
+    ),
+    role_id="arxiv-agent-spn",
+).wait()
+
+# COMMAND ----------
+# Step 4: Postgres role SQL 
+endpoint = next(iter(pg_api.list_endpoints(parent=branch_parent)))
+host = endpoint.status.hosts.host
+pg_credential = pg_api.generate_database_credential(endpoint=endpoint.name)
+
+user = w.current_user.me()
+username = urllib.parse.quote_plus(user.user_name)
+
+conn_string = (
+    f"postgresql://{username}:{pg_credential.token}@{host}:5432/"
+    "databricks_postgres?sslmode=require"
+)
+
+with psycopg.connect(conn_string) as conn:
+    conn.execute(f"""
+        GRANT USAGE ON SCHEMA public TO "{client_id}";
+    """)
+    conn.execute(f"""
+        GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE session_messages TO "{client_id}";
+    """)
+    conn.execute(f"""
+        GRANT USAGE, SELECT ON SEQUENCE session_messages_id_seq TO "{client_id}";
+    """)

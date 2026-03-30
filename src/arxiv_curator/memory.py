@@ -1,13 +1,11 @@
-"""Session memory management using Lakebase (Databricks PostgreSQL)."""
-
 import json
 import os
 import urllib.parse
 from typing import Any
-from uuid import uuid4
 
 import psycopg
 from databricks.sdk import WorkspaceClient
+from databricks.sdk.service.postgres import PostgresAPI
 from loguru import logger
 from psycopg_pool import ConnectionPool
 
@@ -17,38 +15,53 @@ class LakebaseMemory:
 
     def __init__(
         self,
-        host: str,
-        instance_name: str,
-    ):
-        self.host = host
-        self.instance_name = instance_name
+        project_id: str,
+    ) -> None:
+        self.project_id = project_id
         self._pool: ConnectionPool | None = None
-        self.client_id = os.getenv("DATABRICKS_CLIENT_ID", None)
 
     def _get_connection_string(self) -> str:
         """Build connection string for Lakebase.
 
         Supports two authentication modes:
-        - SPN (production): Set DATABRICKS_CLIENT_ID, DATABRICKS_CLIENT_SECRET, DATABRICKS_HOST
-        - User (local testing): Uses default WorkspaceClient auth (e.g., ~/.databrickscfg)
+        - SPN (production): Needs LAKEBASE_SP_CLIENT_ID, LAKEBASE_SP_CLIENT_SECRET, LAKEBASE_SP_HOST
+        - User (local testing): Uses default WorkspaceClient auth
         """
-        w = WorkspaceClient()
+        # Use dedicated Lakebase SPN env vars to avoid overriding
+        # the default WorkspaceClient auth used by MCP tools
+        client_id = os.environ.get("LAKEBASE_SP_CLIENT_ID")
+        client_secret = os.environ.get("LAKEBASE_SP_CLIENT_SECRET")
+        host = os.environ.get("LAKEBASE_SP_HOST")
 
-        if self.client_id:
-            # SPN authentication
-            username = self.client_id
+        if client_id and client_secret and host:
+            w = WorkspaceClient(
+                host=host,
+                client_id=client_id,
+                client_secret=client_secret,
+            )
         else:
-            # User authentication (local testing)
+            w = WorkspaceClient()
+
+        pg_api = PostgresAPI(w.api_client)
+
+        # Determine username based on auth type
+        if client_id:
+            username = client_id
+        else:
             user = w.current_user.me()
             username = urllib.parse.quote_plus(user.user_name)
 
-        # Exchange auth for a short-lived Lakebase database token
-        pg_credential = w.database.generate_database_credential(
-            request_id=str(uuid4()), instance_names=[self.instance_name]
+        # Get endpoint, host, and generate credential
+        project_parent = f"projects/{self.project_id}"
+        default_branch = next(iter(pg_api.list_branches(parent=project_parent)))
+        endpoint = next(iter(pg_api.list_endpoints(parent=default_branch.name)))
+        host = endpoint.status.hosts.host
+        pg_credential = pg_api.generate_database_credential(
+            endpoint=endpoint.name,
         )
 
         return (
-            f"postgresql://{username}:{pg_credential.token}@{self.host}:5432/"
+            f"postgresql://{username}:{pg_credential.token}@{host}:5432/"
             "databricks_postgres?sslmode=require"
         )
 
@@ -65,26 +78,10 @@ class LakebaseMemory:
             self._pool.close()
             self._pool = None
 
-    def _ensure_messages_table(self, conn: psycopg.Connection) -> None:
-        """Create messages table if it doesn't exist."""
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS session_messages (
-                id SERIAL PRIMARY KEY,
-                session_id TEXT NOT NULL,
-                message_data JSONB NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        conn.execute("""
-            CREATE INDEX IF NOT EXISTS idx_session_messages_session_id
-            ON session_messages(session_id)
-        """)
-
     def load_messages(self, session_id: str) -> list[dict[str, Any]]:
         """Load previous messages for a session."""
         try:
             with self._get_pool().connection() as conn:
-                self._ensure_messages_table(conn)
                 result = conn.execute(
                     """
                     SELECT message_data FROM session_messages
@@ -107,7 +104,6 @@ class LakebaseMemory:
         """Append messages to a session."""
         try:
             with self._get_pool().connection() as conn:
-                self._ensure_messages_table(conn)
                 for msg in messages:
                     conn.execute(
                         "INSERT INTO session_messages (session_id, message_data) "
