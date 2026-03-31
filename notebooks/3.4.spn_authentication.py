@@ -45,6 +45,11 @@ token = requests.post(
 ).json()["access_token"]
 
 # Step 1: Create service principal + OAuth secret
+# until now, we were connecting to things as a user (tmp token). however, when we're
+# running an agent behing a model serving endpoint we should not run as user, we should
+# run as a service principal, and the whole authentication flow goes as a service
+# principal (to be reviewed in next classes, there are other alternatives for
+# authentication management from mlflow logging perspective).
 sp = w.service_principals.create(display_name="lakebase-sp-arxiv")
 secret_resp = requests.post(
     f"{account_host}/api/2.0/accounts/{account_id}/servicePrincipals/{sp.id}/"

@@ -5,7 +5,10 @@
 #        ├── Computes (R/W compute)
 #        ├── Roles (Postgres roles)
 #        └── Databases (Postgres databases)
-
+# LAKEBASE not available free edition
+# The lakebase instance will appear in Compute -> Lakebase tab. There, click on the left
+# side "Catalogs": this makes available to connect to lakebase db from lakehouse.
+# COMMAND ----------
 import json
 import urllib.parse
 from uuid import uuid4
@@ -24,6 +27,7 @@ from loguru import logger
 from valuation_curator.config import ProjectConfig
 from valuation_curator.memory import LakebaseMemory
 
+# COMMAND ----------
 cfg = ProjectConfig.from_yaml("../project_config.yml")
 
 w = WorkspaceClient()
@@ -39,7 +43,6 @@ except Exception:
         project=Project(
             spec=ProjectSpec(
                 display_name=project_id,
-                budget_policy_id=cfg.usage_policy_id,
                 default_endpoint_settings=ProjectDefaultEndpointSettings(
                     autoscaling_limit_min_cu=1,
                     autoscaling_limit_max_cu=4,
