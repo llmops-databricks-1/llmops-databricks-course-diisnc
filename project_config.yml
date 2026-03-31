@@ -11,6 +11,7 @@ dev:
   vector_search_endpoint: llmops_course_vs_endpoint
   genie_space_id: "01f0e97a42981382b3d16f3f1899fdb5"
   usage_policy_id: 686c435d-90af-4c40-9ca4-442d4a3d8899
+  lakebase_project_id: arxiv-agent-lakebase
 
 # Acceptance/Staging environment
 acc:
@@ -23,6 +24,7 @@ acc:
   vector_search_endpoint: llmops_course_vs_endpoint
   genie_space_id: "01f0e97a42981382b3d16f3f1899fdb5"
   usage_policy_id: 686c435d-90af-4c40-9ca4-442d4a3d8899
+  lakebase_project_id: arxiv-agent-lakebase
 
 # Production environment
 prd:
@@ -35,6 +37,7 @@ prd:
   vector_search_endpoint: llmops_course_vs_endpoint
   genie_space_id: "01f0e97a42981382b3d16f3f1899fdb5"
   usage_policy_id: 686c435d-90af-4c40-9ca4-442d4a3d8899
+  lakebase_project_id: arxiv-agent-lakebase
 
 # Model configuration
 model_config:

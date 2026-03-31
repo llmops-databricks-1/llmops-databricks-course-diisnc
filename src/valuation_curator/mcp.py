@@ -1,6 +1,7 @@
 """MCP (Model Context Protocol) integration utilities."""
 
 from collections.abc import Callable
+from typing import Any
 
 from databricks.sdk import WorkspaceClient
 from databricks_mcp import DatabricksMCPClient
@@ -38,7 +39,7 @@ def create_managed_exec_fn(
         Callable that executes the tool
     """
 
-    def exec_fn(**kwargs):
+    def exec_fn(**kwargs: Any) -> Any:
         client = DatabricksMCPClient(server_url=server_url, workspace_client=w)
         response = client.call_tool(tool_name, kwargs)
         return "".join([c.text for c in response.content])

@@ -13,22 +13,23 @@ chunks_table (clean text + metadata)
 Vector Search Index (embeddings)
 """
 
-import json
 import datetime
 import html
+import json
 import os
 import re
 import shutil
 import time
 from urllib import parse, request
-import mlflow.deployments
 
-from valuation_curator.config import ProjectConfig
+import mlflow.deployments
 from loguru import logger
 from pyspark.sql import SparkSession
 from pyspark.sql import types as T
 from pyspark.sql.functions import col, concat_ws, explode, first, udf
 from pyspark.sql.types import ArrayType, StringType, StructField, StructType
+
+from valuation_curator.config import ProjectConfig
 
 
 class DataProcessor:
@@ -118,7 +119,7 @@ class DataProcessor:
     @staticmethod
     def _to_drive_timestamp(value: datetime.datetime) -> str:
         """Convert datetime to Google Drive RFC3339 UTC format."""
-        return value.astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        return value.astimezone(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     @staticmethod
     def _drive_get_json(url: str, params: dict[str, str]) -> dict:
@@ -134,9 +135,11 @@ class DataProcessor:
             f"https://www.googleapis.com/drive/v3/files/{file_id}?alt=media&key={api_key}"
         )
         tmp_path = f"{destination}.tmp"
-        with request.urlopen(file_url, timeout=120) as response:
-            with open(tmp_path, "wb") as output_file:
-                shutil.copyfileobj(response, output_file)
+        with (
+            request.urlopen(file_url, timeout=120) as response,
+            open(tmp_path, "wb") as output_file,
+        ):
+            shutil.copyfileobj(response, output_file)
         os.replace(tmp_path, destination)
 
     def _get_drive_credentials(self) -> tuple[str, str]:
@@ -148,7 +151,7 @@ class DataProcessor:
             api_key = dbutils.secrets.get(scope="gdrive", key="api-key")
             folder_id = dbutils.secrets.get(scope="gdrive", key="folder-id")
             return api_key, folder_id
-        except Exception:
+        except Exception as error:
             api_key = os.getenv("GOOGLE_DRIVE_API_KEY")
             folder_id = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
             if api_key and folder_id:
@@ -157,7 +160,7 @@ class DataProcessor:
                 "Missing Google Drive credentials. Configure Databricks secrets "
                 "scope='gdrive' keys 'api-key' and 'folder-id', or set env vars "
                 "GOOGLE_DRIVE_API_KEY and GOOGLE_DRIVE_FOLDER_ID."
-            )
+            ) from error
 
     def _list_case_folders(
         self,
@@ -256,14 +259,14 @@ class DataProcessor:
             if max_processed is not None:
                 start = datetime.datetime.strptime(
                     str(max_processed), "%Y%m%d%H%M"
-                ).replace(tzinfo=datetime.timezone.utc)
+                ).replace(tzinfo=datetime.UTC)
                 logger.info(
                     "Found existing customs_valuation_metadata table. "
                     f"Starting from: {start.isoformat()}"
                 )
                 return start
 
-        start = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=5)
+        start = datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=5)
         logger.info(
             "No existing customs_valuation_metadata table. "
             f"Starting from 5 days ago: {start.isoformat()}"
@@ -280,7 +283,7 @@ class DataProcessor:
             otherwise None.
         """
         start = self._get_range_start()
-        end = datetime.datetime.now(datetime.timezone.utc)
+        end = datetime.datetime.now(datetime.UTC)
         api_key, root_folder_id = self._get_drive_credentials()
 
         case_folders = self._list_case_folders(
@@ -335,9 +338,7 @@ class DataProcessor:
                         "invoice_path": invoice_path,
                         "declaration_path": declaration_path,
                         "royalty_path": royalty_path,
-                        "ingestion_timestamp": datetime.datetime.now(
-                            datetime.timezone.utc
-                        )
+                        "ingestion_timestamp": datetime.datetime.now(datetime.UTC)
                         .replace(tzinfo=None)
                         .isoformat(),
                         "processed": self.run_processed,
@@ -590,7 +591,7 @@ class DataProcessor:
         self,
         parsed_content_json: str,
         endpoint_name: str,
-        client,
+        client: object,
     ) -> tuple[str, str, bool]:
         """Detect source language and translate content in one LLM call.
 

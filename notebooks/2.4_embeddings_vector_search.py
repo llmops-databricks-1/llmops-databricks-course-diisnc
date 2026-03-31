@@ -12,11 +12,12 @@
 
 # COMMAND ----------
 
-from valuation_curator.config import get_env, load_config
-from valuation_curator.vector_search import VectorSearchManager
 from databricks.vector_search.reranker import DatabricksReranker
 from loguru import logger
 from pyspark.sql import SparkSession
+
+from valuation_curator.config import get_env, load_config
+from valuation_curator.vector_search import VectorSearchManager
 
 # COMMAND ----------
 
@@ -197,7 +198,7 @@ def parse_vector_search_results(results: dict) -> list[dict]:
     columns = [col["name"] for col in results.get("manifest", {}).get("columns", [])]
     data_array = results.get("result", {}).get("data_array", [])
 
-    return [dict(zip(columns, row_data)) for row_data in data_array]
+    return [dict(zip(columns, row_data, strict=False)) for row_data in data_array]
 
 
 # COMMAND ----------

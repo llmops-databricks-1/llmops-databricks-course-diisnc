@@ -54,9 +54,7 @@ pythonpath = ["."]
 [tool.ruff]
 line-length = 90
 
-[tool.ruff.lint.per-file-ignores]
-"notebooks/2.2_pdf_parsing_ai_parse.py" = ["E501"]
-
+[tool.ruff.lint]
 select = [
     "F",    # pyflakes rules
     "E",    # pycodestyle error rules
@@ -77,9 +75,15 @@ ignore = [
     "C901",   # too complex
     "ERA001", # commented out code
     "ANN204",
-    "ANN102",
-    "ANN101"
+    "ANN401",  # Allow Any types
+    "ANN002",
+    "ANN003"
 ]
+
+[tool.ruff.lint.per-file-ignores]
+"notebooks/2.2_pdf_parsing_ai_parse.py" = ["E501"]
+"notebooks/3.4.spn_authentication.py" = ["F821"]
+"notebooks/3.5.spn_authentication_in_action.py" = ["F821"]
 
 [tool.ruff.format]
 indent-style = "space"

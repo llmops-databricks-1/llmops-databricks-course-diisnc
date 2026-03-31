@@ -1,30 +1,38 @@
 # Databricks notebook source
 import os
-from databricks.sdk import WorkspaceClient
-from databricks.sdk.service.database import DatabaseInstance, DatabaseInstanceState
 from uuid import uuid4
+
+from databricks.sdk import WorkspaceClient
+from databricks.sdk.service.postgres import PostgresAPI
 from loguru import logger
 
-from arxiv_curator.memory import LakebaseMemory
-from arxiv_curator.config import load_config, get_env
+from valuation_curator.config import ProjectConfig
+from valuation_curator.memory import LakebaseMemory
 
-
-scope_name = "arxiv-agent-scope"
-os.environ["DATABRICKS_CLIENT_ID"] = dbutils.secrets.get(scope_name, "client_id")
-os.environ["DATABRICKS_CLIENT_SECRET"] = dbutils.secrets.get(scope_name, "client_secret")
- 
+cfg = ProjectConfig.from_yaml("../project_config.yml")
 
 w = WorkspaceClient()
-os.environ["DATABRICKS_HOST"] = w.config.host
+pg_api = PostgresAPI(w.api_client)
+
+project_id = cfg.lakebase_project_id
+
+scope_name = "arxiv-agent-scope"
+os.environ["LAKEBASE_SP_CLIENT_ID"] = dbutils.secrets.get(scope_name, "client_id")
+os.environ["LAKEBASE_SP_CLIENT_SECRET"] = dbutils.secrets.get(scope_name, "client_secret")
+
+
+w = WorkspaceClient()
+os.environ["LAKEBASE_SP_HOST"] = w.config.host
 
 # COMMAND ----------
 instance_name = "arxiv-agent-instance"
 instance = w.database.get_database_instance(instance_name)
 lakebase_host = instance.read_write_dns
 
+project = pg_api.get_project(name=f"projects/{project_id}")
+
 memory = LakebaseMemory(
-    host=lakebase_host,
-    instance_name=instance_name,
+    project_id=project_id,
 )
 
 # COMMAND ----------
@@ -35,7 +43,10 @@ session_id = f"test-session-{uuid4()}"
 # Save some messages
 test_messages = [
     {"role": "user", "content": "What are recent papers on transformers?"},
-    {"role": "assistant", "content": "Here are some recent papers on transformer architectures..."},
+    {
+        "role": "assistant",
+        "content": "Here are some recent papers on transformer architectures...",
+    },
     {"role": "user", "content": "Tell me more about the first one"},
 ]
 
