@@ -13,6 +13,9 @@
 # MAGIC - Converts natural language questions to SQL queries
 # MAGIC - Executes queries and returns results
 # MAGIC - Can be integrated with agents via MCP
+# MAGIC Note: in this nb, Genie was connected to metadata and not vector search table.
+# MAGIC Genie should be connected to structured data to generate SQL, not embeddings
+# MAGIC or vector indexes.
 
 # COMMAND ----------
 import json
@@ -63,20 +66,21 @@ else:
 # MAGIC
 # MAGIC Genie requires a SQL warehouse to execute queries.
 # MAGIC Skip this if using an existing space.
+# MAGIC Note: this config is for serverless.
 
 # COMMAND ----------
 
 if not USE_EXISTING_SPACE:
-    # Create a new warehouse for the Genie space
+    # Create a new warehouse for the Genie space (NEEDS UPDATE)
     created = w.warehouses.create(
-        name="__2XS_arxiv_warehouse",
+        name="__2XS_valuation_warehouse",
         cluster_size="2X-Small",
         max_num_clusters=1,
         auto_stop_mins=10,
         warehouse_type=CreateWarehouseRequestWarehouseType("PRO"),
         enable_serverless_compute=True,
         tags=sql.EndpointTags(
-            custom_tags=[sql.EndpointTagPair(key="Project", value="arxiv_curator")]
+            custom_tags=[sql.EndpointTagPair(key="Project", value="valuation_curator")]
         ),
     ).result()
     warehouse_id = created.id
@@ -96,7 +100,9 @@ else:
 
 # COMMAND ----------
 
-# Configure the Genie space with arxiv_papers table
+# Configure the Genie space with arxiv_papers table (NEEDS UPDATE)
+# Genie should be connected to structured data to generate SQL, not embeddings or
+# vector indexes.
 serialized_space = {
     "version": 1,
     "data_sources": {
@@ -163,11 +169,12 @@ logger.info(f"Space config: {json.loads(space.serialized_space)}")
 # MAGIC ## 5. Start a Conversation
 # MAGIC
 # MAGIC Ask Genie a natural language question about the data.
+# MAGIC The questions can be accessed in the monitoring tab in the Genie UI.
 
 # COMMAND ----------
 
 conversation = w.genie.start_conversation_and_wait(
-    space_id=space.space_id, content="Find the last 10 papers published"
+    space_id=space.space_id, content="What was the date of the last ingested files?"
 )
 
 conversation.as_dict()
@@ -184,9 +191,7 @@ conversation.as_dict()
 message = w.genie.create_message_and_wait(
     space_id=space.space_id,
     conversation_id=conversation.conversation_id,
-    content="Return the list of authors of the last 10 papers published",
+    content="For the files ingested in that date, list their ids.",
 )
 
 message.as_dict()
-
-# COMMAND ----------

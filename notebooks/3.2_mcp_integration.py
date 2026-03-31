@@ -25,6 +25,7 @@ from valuation_curator.config import get_env, load_config
 from valuation_curator.mcp import create_mcp_tools
 
 # Enable nested event loops (required for Databricks notebooks)
+# (notebooks already have an event loop running in the background)
 nest_asyncio.apply()
 
 # COMMAND ----------
@@ -42,7 +43,7 @@ w = WorkspaceClient()
 # MAGIC ## 1. What is Model Context Protocol (MCP)?
 # MAGIC
 # MAGIC **MCP** is a standardized protocol for connecting AI models to external data
-# sources and tools.
+# MAGIC sources and tools.
 # MAGIC
 # MAGIC ### Key Concepts:
 # MAGIC
@@ -53,11 +54,11 @@ w = WorkspaceClient()
 # MAGIC
 # MAGIC ### Why MCP?
 # MAGIC
-# MAGIC **Standardized**: Common protocol across different systems
-# MAGIC **Reusable**: One MCP server, many agents
-# MAGIC **Managed**: Databricks manages the infrastructure
-# MAGIC **Secure**: Built-in authentication and authorization
-# MAGIC **Scalable**: Enterprise-grade performance
+# MAGIC - **Standardized**: Common protocol across different systems
+# MAGIC - **Reusable**: One MCP server, many agents
+# MAGIC - **Managed**: Databricks manages the infrastructure
+# MAGIC - **Secure**: Built-in authentication and authorization
+# MAGIC - **Scalable**: Enterprise-grade performance
 
 # COMMAND ----------
 
@@ -129,6 +130,7 @@ vs_mcp_client = DatabricksMCPClient(server_url=vector_search_mcp_url, workspace_
 # List available tools
 vs_tools = vs_mcp_client.list_tools()
 
+# The tools follow OpenAI specifications so we can extract name, description, ...
 logger.info(f"Vector Search MCP Tools ({len(vs_tools)}):")
 logger.info("=" * 80)
 for tool in vs_tools:
@@ -143,7 +145,7 @@ for tool in vs_tools:
 # MAGIC ### Call Vector Search Tool
 # MAGIC
 # MAGIC **Important**: The MCP tool name uses double underscores:
-# MAGIC - Tool name: `workspace__course_data__arxiv_index`
+# MAGIC - Tool name: `workspace__course_data__valuation_index`
 # MAGIC - Parameter: `query` (just the search query text)
 # MAGIC - The index is already specified in the tool name itself
 
@@ -151,11 +153,11 @@ for tool in vs_tools:
 
 # Search for papers about machine learning
 # The tool name is the index name with '__' separators
-tool_name = f"{cfg.catalog}__{cfg.schema}__arxiv_index"
+# NOTE: it's possible to modify the defaults for any tools using fastMCP
+#   (e.g. change nº results)
+tool_name = f"{cfg.catalog}__{cfg.schema}__valuation_index"
 
-search_result = vs_mcp_client.call_tool(
-    tool_name, {"query": "machine learning and neural networks"}
-)
+search_result = vs_mcp_client.call_tool(tool_name, {"query": "royalty 3.5%"})
 
 logger.info("Search Results:")
 logger.info("=" * 80)
@@ -176,10 +178,14 @@ for content in search_result.content:
 # MAGIC ```
 # MAGIC
 # MAGIC **Genie** allows natural language queries over your data.
+# MAGIC Note: genie space can be configured in notebook 3.2b or in db UI.
+# MAGIC
+# MAGIC Genie should be connected to structured data to generate SQL, not embeddings or
+# MAGIC vector indexes.
 
 # COMMAND ----------
 
-# Check if Genie space is configured
+# Check if Genie space is configured in config file
 if hasattr(cfg, "genie_space_id") and cfg.genie_space_id:
     genie_mcp_url = f"{host}/api/2.0/mcp/genie/{cfg.genie_space_id}"
     logger.info("Genie MCP URL:")
@@ -225,7 +231,7 @@ else:
 
 # COMMAND ----------
 
-# Define MCP server URLs
+# Define MCP server URLs (combines all MCP URLs: 1 Vector Search and 1 Genie space)
 mcp_urls = [f"{host}/api/2.0/mcp/vector-search/{cfg.catalog}/{cfg.schema}"]
 
 # Add Genie if configured
@@ -234,7 +240,7 @@ if hasattr(cfg, "genie_space_id") and cfg.genie_space_id:
 
 logger.info(f"Loading tools from {len(mcp_urls)} MCP servers...")
 
-# Create tools
+# Create tools: combine tools from MCP URLs
 mcp_tools = asyncio.run(create_mcp_tools(w, mcp_urls))
 
 logger.info(f"✓ Loaded {len(mcp_tools)} tools from MCP servers")
@@ -254,13 +260,13 @@ tools_dict = {tool.name: tool for tool in mcp_tools}
 
 # Example: Use vector search tool directly
 # The tool name is the index name with '__' separators
-vector_search_tool_name = f"{cfg.catalog}__{cfg.schema}__arxiv_index"
+vector_search_tool_name = f"{cfg.catalog}__{cfg.schema}__valuation_index"
 
 if vector_search_tool_name in tools_dict:
     search_tool = tools_dict[vector_search_tool_name]
 
     # Execute the tool - only takes 'query' parameter
-    result = search_tool.exec_fn(query="deep learning architectures")
+    result = search_tool.exec_fn(query="royalty 3.5%")
 
     logger.info("Search Results:")
     logger.info(result)
@@ -459,8 +465,19 @@ for tool_name in agent._tools_dict:
 # COMMAND ----------
 
 # Test agent with MCP vector search tool
+# It will call tool: customs__customs_valuation__valuation_index
 logger.info("Testing agent with MCP tools:")
 logger.info("=" * 80)
 
-response = agent.chat("Find papers about transformer architectures")
+response = agent.chat("Find documents with 3.5% royalty.")
+logger.info(f"Agent response: {response}")
+
+# COMMAND ----------
+
+# Test agent with metadata it was given
+# It will call tool: query_space_01f12d0e51151a0f99caa978a12e068a
+logger.info("Testing agent with MCP tools:")
+logger.info("=" * 80)
+
+response = agent.chat("What was the date of the last ingested files?")
 logger.info(f"Agent response: {response}")

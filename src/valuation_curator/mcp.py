@@ -47,6 +47,7 @@ def create_managed_exec_fn(
     return exec_fn
 
 
+# combine tools from MCP vector search + MCP genie space so this can be provided to agent
 async def create_mcp_tools(w: WorkspaceClient, url_list: list[str]) -> list[ToolInfo]:
     """Create tools from MCP servers.
 

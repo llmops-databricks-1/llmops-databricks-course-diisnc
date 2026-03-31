@@ -6,6 +6,8 @@
 # MAGIC - Creating Python UDFs in Unity Catalog
 # MAGIC - Registering functions with `CREATE OR REPLACE FUNCTION`
 # MAGIC - Calling UC functions from Spark SQL
+# MAGIC They will be showing in Catalog -> schema -> Functions and can be accesed through
+# MAGIC MCP. Also visible in the agents tab -> MCP servers and enable as a tool.
 
 # COMMAND ----------
 
