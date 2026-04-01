@@ -1,6 +1,7 @@
 import mlflow
-from arxiv_curator.agent import ArxivAgent
 from mlflow.models import ModelConfig
+
+from valuation_curator.agent import ValuationAgent
 
 config = ModelConfig(
     development_config={
@@ -13,7 +14,7 @@ config = ModelConfig(
     }
 )
 
-agent = ArxivAgent(
+agent = ValuationAgent(
     llm_endpoint=config.get("llm_endpoint"),
     system_prompt=config.get("system_prompt"),
     catalog=config.get("catalog"),
