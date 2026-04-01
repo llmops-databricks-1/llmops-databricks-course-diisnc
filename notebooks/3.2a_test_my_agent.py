@@ -1,14 +1,17 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # Lecture 3.2: Model Context Protocol (MCP) Integration
+# MAGIC # My agent with MCP tools
 # MAGIC
-# MAGIC ## Topics Covered:
-# MAGIC - What is MCP?
-# MAGIC - MCP vs custom functions
-# MAGIC - Databricks MCP servers
-# MAGIC - Vector Search MCP
-# MAGIC - Genie Space MCP
-# MAGIC - Creating MCP tools for agents
+# MAGIC This is a replica of notebook 3.2_mcp_integration.py but adapted to my agent and
+# MAGIC the tools it will need:
+# MAGIC - Create Vector Search MCP URL (tool) with my index table
+# MAGIC - Create Genie Space MCP URL (tool) with my metadata table (initial metadata table
+# MAGIC (customs_valuation_metadata) + chunks table (chunks_table) which has more complete
+# MAGIC metadata from ingested files)
+# MAGIC - Creating others MCP Tools for Agents:
+# MAGIC     - anomaly detection (simple logic) using UC functions based on chunks table
+# MAGIC       extracted metadata
+
 # COMMAND ----------
 
 import asyncio
@@ -40,46 +43,6 @@ w = WorkspaceClient()
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 1. What is Model Context Protocol (MCP)?
-# MAGIC
-# MAGIC **MCP** is a standardized protocol for connecting AI models to external data
-# MAGIC sources and tools.
-# MAGIC
-# MAGIC ### Key Concepts:
-# MAGIC
-# MAGIC - **MCP Server**: Exposes tools and resources
-# MAGIC - **MCP Client**: Connects to servers and calls tools
-# MAGIC - **Tools**: Functions that can be called
-# MAGIC - **Resources**: Data that can be accessed
-# MAGIC
-# MAGIC ### Why MCP?
-# MAGIC
-# MAGIC - **Standardized**: Common protocol across different systems
-# MAGIC - **Reusable**: One MCP server, many agents
-# MAGIC - **Managed**: Databricks manages the infrastructure
-# MAGIC - **Secure**: Built-in authentication and authorization
-# MAGIC - **Scalable**: Enterprise-grade performance
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## 2. MCP vs Custom Functions
-# MAGIC
-# MAGIC | Aspect | Custom Functions | MCP |
-# MAGIC |--------|-----------------|-----|
-# MAGIC | **Setup** | Write Python code | Use existing MCP servers |
-# MAGIC | **Maintenance** | You maintain | Databricks maintains |
-# MAGIC | **Reusability** | Per-agent | Across agents |
-# MAGIC | **Security** | Manual | Built-in |
-# MAGIC | **Scalability** | Manual | Automatic |
-# MAGIC | **Best For** | Custom logic | Standard operations |
-# MAGIC
-# MAGIC **Use MCP when**: You need standard operations (search, query, etc.)
-# MAGIC **Use Custom Functions when**: You need custom business logic
-
-# COMMAND ----------
-
-# MAGIC %md
 # MAGIC ## 3. Databricks MCP Servers
 # MAGIC
 # MAGIC Databricks provides managed MCP servers for:
@@ -98,15 +61,6 @@ w = WorkspaceClient()
 
 # MAGIC %md
 # MAGIC ### Vector Search MCP URL Format:
-# MAGIC ```
-# MAGIC {workspace_host}/api/2.0/mcp/vector-search/{catalog}/{schema}
-# MAGIC ```
-# MAGIC
-# MAGIC **How it works:**
-# MAGIC - The MCP server scans all vector search indexes in the specified catalog/schema
-# MAGIC - For each index, it creates a tool with name: `catalog__schema__index_name`
-# MAGIC - Each tool takes a single parameter: `query` (the search text)
-# MAGIC - The tool automatically handles embedding and similarity search
 
 # COMMAND ----------
 
@@ -210,19 +164,111 @@ else:
 
 # MAGIC %md
 # MAGIC ## 6. Creating MCP Tools for Agents
-# MAGIC
-# MAGIC **Using `valuation_curator.mcp` module:**
-# MAGIC
-# MAGIC We've imported the following from our custom package:
-# MAGIC - `ToolInfo`: Pydantic model for tool information (name, spec, exec_fn)
-# MAGIC - `create_managed_exec_fn()`: Creates execution functions for MCP tools
-# MAGIC - `create_mcp_tools()`: Converts MCP server tools to agent-compatible tools
-# MAGIC
-# MAGIC These utilities handle:
-# MAGIC 1. Connecting to MCP servers
-# MAGIC 2. Listing available tools
-# MAGIC 3. Creating OpenAI-compatible tool specifications
-# MAGIC 4. Creating execution functions that call the MCP tools
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Create Unity Catalog Function
+# MAGIC This needs to be registered as a tool, but MCP server reads the function's
+# MAGIC metadata directly from Unity Catalog and auto-generates the OpenAI spec.
+# MAGIC Otherwise, the tool won't be called properly.
+
+# COMMAND ----------
+print(f"Using catalog: {cfg.catalog}, schema: {cfg.schema}")
+
+# Register anomaly detection function to identify inconsistencies in customs valuation
+# data
+# note: anomaly_type STRING DEFAULT NULL is needed for tool to automatically define the
+# openAI format tool spec with an optional parameter (instead of required)
+function_name = f"{cfg.catalog}.{cfg.schema}.detect_anomalies"
+spark.sql(
+    f"""
+    CREATE OR REPLACE FUNCTION {function_name}(
+        anomaly_type STRING DEFAULT NULL COMMENT 'Filter by anomaly type: INVOICE_TOTAL_MISMATCH, DECLARATION_TOTAL_MISMATCH, ROYALTY_MISMATCH. Leave empty to return all anomalies.'
+    )
+    RETURNS TABLE(case_id STRING, anomaly_rule STRING, invoice_total DOUBLE,
+    declaration_invoice_total DOUBLE, declaration_total DOUBLE)
+    COMMENT 'Detects anomalies in customs valuation cases. Returns cases where invoice totals mismatch, declaration totals do not add up, or royalty percentage is declared but royalty amount is missing.'
+    RETURN
+    SELECT DISTINCT
+        case_id,
+        anomaly_rule,
+        MAX(invoice_total) as invoice_total,
+        MAX(declaration_invoice_total) as declaration_invoice_total,
+        MAX(declaration_total) as declaration_total
+    FROM (
+        -- Rule 1: Invoice totals don't match (invoice vs declaration document)
+        SELECT
+            case_id,
+            'INVOICE_TOTAL_MISMATCH' as anomaly_rule,
+            invoice_total,
+            declaration_invoice_total,
+            declaration_total
+        FROM {cfg.full_schema_name}.chunks_table
+        WHERE invoice_total IS NOT NULL
+          AND declaration_invoice_total IS NOT NULL
+          AND invoice_total != declaration_invoice_total
+
+        UNION ALL
+
+        -- Rule 2: Declaration totals don't add up (declaration document)
+        SELECT
+            case_id,
+            'DECLARATION_TOTAL_MISMATCH' as anomaly_rule,
+            invoice_total,
+            declaration_invoice_total,
+            declaration_total
+        FROM {cfg.full_schema_name}.chunks_table
+        WHERE declaration_invoice_total IS NOT NULL
+          AND declaration_total IS NOT NULL
+          AND (
+              round(
+                  declaration_invoice_total + coalesce(declaration_tax_A, 0) +
+                  coalesce(declaration_tax_B, 0) + coalesce(declaration_VAT, 0) +
+                  coalesce(declaration_royalty, 0),
+                  2
+              ) != declaration_total
+          )
+
+        UNION ALL
+
+        -- Rule 3: Royalty mismatch (royalty vs declaration document)
+        SELECT
+            case_id,
+            'ROYALTY_MISMATCH' as anomaly_rule,
+            invoice_total,
+            declaration_invoice_total,
+            declaration_total
+        FROM {cfg.full_schema_name}.chunks_table
+        WHERE royalty_percentage IS NOT NULL
+          AND declaration_royalty IS NULL
+    )
+    WHERE anomaly_type IS NULL OR anomaly_rule = anomaly_type
+    GROUP BY case_id, anomaly_rule
+    ORDER BY case_id, anomaly_rule
+    """
+)
+print(f"Created: {function_name}")
+
+# COMMAND ----------
+# Test the function with all anomalies
+result = spark.sql(
+    f"""
+    SELECT * FROM {cfg.catalog}.{cfg.schema}.detect_anomalies(NULL)
+    LIMIT 10
+"""
+)
+result.show()
+
+# COMMAND ----------
+# Test the function with specific anomaly
+result = spark.sql(
+    f"""
+    SELECT * FROM {cfg.catalog}.{cfg.schema}.detect_anomalies('INVOICE_TOTAL_MISMATCH')
+    LIMIT 10
+"""
+)
+result.show()
 
 # COMMAND ----------
 
@@ -231,12 +277,18 @@ else:
 
 # COMMAND ----------
 
-# Define MCP server URLs (combines all MCP URLs: 1 Vector Search and 1 Genie space)
+# Define MCP server URLs (combines all MCP URLs: 1 Vector Search, 1 Genie space,
+# 1 UC Functions)
 mcp_urls = [f"{host}/api/2.0/mcp/vector-search/{cfg.catalog}/{cfg.schema}"]
 
 # Add Genie if configured
 if hasattr(cfg, "genie_space_id") and cfg.genie_space_id:
     mcp_urls.append(f"{host}/api/2.0/mcp/genie/{cfg.genie_space_id}")
+
+# Add UC Functions MCP — exposes detect_anomalies (and any other UC functions in schema)
+# as deterministic agent tools
+uc_functions_mcp_url = f"{host}/api/2.0/mcp/functions/{cfg.catalog}/{cfg.schema}"
+mcp_urls.append(uc_functions_mcp_url)
 
 logger.info(f"Loading tools from {len(mcp_urls)} MCP servers...")
 
@@ -274,7 +326,7 @@ if vector_search_tool_name in tools_dict:
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 8. MCP Tool Specifications
+# MAGIC ## 8. MCP Tool Specifications (following OpenAI format)
 
 # COMMAND ----------
 
@@ -283,43 +335,10 @@ if mcp_tools:
     logger.info("Tool Specifications for LLM:")
     logger.info("=" * 80)
 
-    for tool in mcp_tools[:2]:  # Show first 2 tools
+    for tool in mcp_tools:
         logger.info(f"Tool: {tool.name}")
         logger.info(json.dumps(tool.spec, indent=2))
 
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## 9. Benefits of MCP
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ### 1. **No Code Required**
-# MAGIC ```python
-# MAGIC # Without MCP: Write custom function
-# MAGIC def search_papers(query: str):
-# MAGIC     # 50+ lines of code
-# MAGIC     pass
-# MAGIC
-# MAGIC # With MCP: Just use it
-# MAGIC tools = asyncio.run(create_mcp_tools(w, [mcp_url]))
-# MAGIC ```
-# MAGIC
-# MAGIC ### 2. **Automatic Updates**
-# MAGIC - Databricks maintains the MCP servers
-# MAGIC - New features added automatically
-# MAGIC - Bug fixes without code changes
-# MAGIC
-# MAGIC ### 3. **Consistent Interface**
-# MAGIC - Same pattern for all MCP tools
-# MAGIC - Easy to add new MCP servers
-# MAGIC - Standardized error handling
-# MAGIC
-# MAGIC ### 4. **Enterprise Features**
-# MAGIC - Built-in authentication
-# MAGIC - Audit logging
-# MAGIC - High availability
 
 # COMMAND ----------
 
@@ -475,9 +494,22 @@ logger.info(f"Agent response: {response}")
 # COMMAND ----------
 
 # Test agent with metadata it was given
-# It will call tool: query_space_01f12d0e51151a0f99caa978a12e068a
+# It will call tool: query_space_..., pool_response_...
 logger.info("Testing agent with MCP tools:")
 logger.info("=" * 80)
 
 response = agent.chat("What was the date of the last ingested files?")
 logger.info(f"Agent response: {response}")
+
+# COMMAND ----------
+
+# Test agent with unity catalog function
+# It will call tool: customs__customs_valuation__detect_anomalies(anomaly_type=NULL)
+logger.info("Testing agent with MCP tools:")
+logger.info("=" * 80)
+
+response = agent.chat("In which cases do I have anomalies?")
+logger.info(f"Agent response: {response}")
+
+# COMMAND ----------
+# Note: answers can also be accessed in Genie -> monitoring
