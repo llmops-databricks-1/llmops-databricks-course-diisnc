@@ -20,7 +20,6 @@ import os
 from dotenv import load_dotenv
 
 import mlflow
-import nest_asyncio
 from databricks.sdk import WorkspaceClient
 from loguru import logger
 from mlflow.types.responses import (
@@ -31,8 +30,6 @@ from pyspark.sql import SparkSession
 from arxiv_curator.config import load_config, get_env
 from arxiv_curator.agent import ArxivAgent
 
-# Enable nested event loops
-nest_asyncio.apply()
 
 # COMMAND ----------
 

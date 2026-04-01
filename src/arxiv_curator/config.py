@@ -48,8 +48,11 @@ class ProjectConfig(BaseModel):
 
         if env not in config_data:
             raise ValueError(f"Environment '{env}' not found in config file")
+        
+        env_config = config_data[env]
+        env_config["system_prompt"] = config_data["system_prompt"]
 
-        return cls(**config_data[env])
+        return cls(**env_config)
 
     @property
     def schema(self) -> str:

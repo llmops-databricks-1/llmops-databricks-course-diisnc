@@ -18,14 +18,11 @@ from arxiv_curator.evaluation import (
     polite_tone_guideline,
     word_count_check,
 )
-from arxiv_curator.utils.common import set_mlflow_tracking_uri
-
-set_mlflow_tracking_uri()
 
 # COMMAND ----------
 # Initialize the agent
 cfg = ProjectConfig.from_yaml("../project_config.yml")
-mlflow.set_experiment(cfg.experiment_path)
+mlflow.set_experiment(cfg.experiment_name)
 
 agent = ArxivAgent(
     llm_endpoint=cfg.llm_endpoint,
