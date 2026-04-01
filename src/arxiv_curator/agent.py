@@ -87,7 +87,7 @@ class ArxivAgent(ResponsesAgent):
     def call_llm(
         self,
         messages: list[dict[str, Any]],
-    ) -> list[dict[str, Any]]:
+    ) -> Generator[dict[str, Any], None, None]:
         with warnings.catch_warnings():
             warnings.filterwarnings(
                 "ignore", message="PydanticSerializationUnexpectedValue"
@@ -98,22 +98,20 @@ class ArxivAgent(ResponsesAgent):
                 tools=self.get_tool_specs(),
                 stream=True,
             )
-            chunks = []
-            for chunk in stream:
-                chunks.append(chunk.to_dict())
-
-        with mlflow.start_span(name="call_llm", span_type=SpanType.LLM) as span:
-            last_chunk = chunks[-1] if chunks else {}
-            llm_request_id = stream.response.headers.get("x-request-id")
-            outputs: dict[str, Any] = {
-                "model": last_chunk.get("model"),
-                "usage": last_chunk.get("usage"),
-            }
-            if llm_request_id:
-                outputs["llm_request_id"] = llm_request_id
-            span.set_outputs(outputs)
-
-        return chunks
+            with mlflow.start_span(name="call_llm", span_type=SpanType.LLM) as span:
+                last_chunk: dict[str, Any] = {}
+                for chunk in stream:
+                    chunk_dict = chunk.to_dict()
+                    last_chunk = chunk_dict
+                    yield chunk_dict
+                llm_request_id = stream.response.headers.get("x-request-id")
+                outputs: dict[str, Any] = {
+                    "model": last_chunk.get("model"),
+                    "usage": last_chunk.get("usage"),
+                }
+                if llm_request_id:
+                    outputs["llm_request_id"] = llm_request_id
+                span.set_outputs(outputs)
 
     def handle_tool_call(
         self, tool_call: dict[str, Any], messages: list[dict[str, Any]]
@@ -235,27 +233,27 @@ class ArxivAgent(ResponsesAgent):
             custom_outputs=request.custom_inputs,
         )
 
+    @mlflow.trace(span_type=SpanType.AGENT)
     def predict_stream(
         self, request: ResponsesAgentRequest
     ) -> Generator[ResponsesAgentStreamEvent, None, None]:
-        with mlflow.start_span(name="predict_stream", span_type=SpanType.AGENT):
-            custom = request.custom_inputs or {}
-            session_id = custom.get("session_id")
-            request_id = custom.get("request_id")
+        custom = request.custom_inputs or {}
+        session_id = custom.get("session_id")
+        request_id = custom.get("request_id")
 
-            previous_messages = (
-                self.load_memory(session_id)
-                if session_id and self.memory else []
-            )
+        previous_messages = (
+            self.load_memory(session_id)
+            if session_id and self.memory else []
+        )
 
-            request_input = [i.model_dump() for i in request.input]
-            events = self.call_and_run_tools(
-                request_input=request_input,
-                previous_messages=previous_messages,
-                request_id=request_id,
-                session_id=session_id,
-            )
-            yield from events
+        request_input = [i.model_dump() for i in request.input]
+        events = self.call_and_run_tools(
+            request_input=request_input,
+            previous_messages=previous_messages,
+            request_id=request_id,
+            session_id=session_id,
+        )
+        yield from events
 
 def log_register_agent(
     cfg: ProjectConfig,
