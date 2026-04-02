@@ -91,6 +91,8 @@ result = add_numbers(5, 3)
 logger.info(f"Result: {result}")
 
 logger.info("✓ Trace created! Check MLflow UI to see the trace.")
+# this will create a window where I can see the trace, but it's also accessible through
+# Experiments -> llmops-course-demo -> Traces
 
 # COMMAND ----------
 
@@ -151,11 +153,11 @@ def complex_function(x: int, y: int) -> int:
         # Do some work
         with mlflow.start_span("step_1_multiply") as step1:
             result1 = x * y
-            step1.set_outputs({"result": result1})
+            step1.set_outputs({"result": result1})  # only set output, not input
 
         with mlflow.start_span("step_2_add") as step2:
             result2 = result1 + 10
-            step2.set_outputs({"result": result2})
+            step2.set_outputs({"result": result2})  # only set output, not input
 
         # Set final outputs
         span.set_outputs({"final_result": result2})
@@ -173,6 +175,10 @@ logger.info("✓ Trace with nested spans created!")
 
 # MAGIC %md
 # MAGIC ## 5. Adding Metadata and Tags
+# MAGIC For more information which allows to search later.
+# MAGIC The tags are important to later know where experiment came from: local, databricks
+# MAGIC serving endpoint, ... and also to search later by git sha, model version, endpoint
+# MAGIC name, etc.
 
 # COMMAND ----------
 
@@ -195,7 +201,7 @@ def function_with_metadata(x: int, y: int) -> int:
             "environment": "production",
         },
         tags={
-            "model_serving_endpoint_name": "arxiv-agent-endpoint",
+            "model_serving_endpoint_name": "valuation-agent-endpoint",
             "model_version": "1",
             "git_sha": git_sha,
             "request_type": "calculation",
@@ -213,6 +219,8 @@ logger.info("Trace metadata:")
 logger.info(f"  Session ID: {session_id}")
 logger.info(f"  Request ID: {request_id}")
 logger.info(f"  Git SHA: {git_sha}")
+# these details will be visible in the MLflow UI
+
 
 # COMMAND ----------
 
@@ -258,7 +266,7 @@ else:
 
 w = WorkspaceClient()
 
-# Authenticate using Databricks SDK
+# Authenticate using Databricks SDK (development purposes only, creating tmp token)
 host = w.config.host
 token = w.tokens.create(lifetime_seconds=1200).token_value
 
@@ -300,6 +308,7 @@ logger.info("✓ Real LLM call traced!")
 # COMMAND ----------
 
 
+# not using real agent, template for development purposes
 @mlflow.trace(span_type=SpanType.AGENT)
 def agent_interaction(user_message: str) -> dict:
     """Simulate a complete agent interaction."""
@@ -372,7 +381,7 @@ if len(recent_traces_df) > 0:
         if col in recent_traces_df.columns:
             cols_to_show.append(col)
 
-    if cols_to_show:
+    if cols_to_show:  # latest 10 traces by timestamp
         display(recent_traces_df[cols_to_show].head(10))  # noqa: F821
     else:
         # Just show first few columns if none of our preferred ones exist
@@ -386,7 +395,7 @@ else:
 # MAGIC ## 10. Trace Attributes
 
 # COMMAND ----------
-
+# from recent_traces_df, get more details
 if len(recent_traces_df) > 0:
     # Get first row as a Series
     trace = recent_traces_df.iloc[0]
