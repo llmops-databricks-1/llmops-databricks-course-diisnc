@@ -41,11 +41,12 @@
 
 import re
 
-from valuation_curator.config import get_env, load_config
 from loguru import logger
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.functions import col
+
+from valuation_curator.config import get_env, load_config
 
 # COMMAND ----------
 

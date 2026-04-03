@@ -2,9 +2,11 @@
 
 from typing import Any
 
-from valuation_curator.config import ProjectConfig
+from databricks.sdk import WorkspaceClient
 from databricks.vector_search.client import VectorSearchClient
 from loguru import logger
+
+from valuation_curator.config import ProjectConfig
 
 
 class VectorSearchManager:
@@ -23,6 +25,7 @@ class VectorSearchManager:
             config: ProjectConfig object
             endpoint_name: Name of the vector search endpoint (uses config if None)
             embedding_model: Name of the embedding model endpoint (uses config if None)
+            usage_policy_id: ID of the usage policy for the endpoint (optional)
         """
         self.config = config
         self.endpoint_name = endpoint_name or config.vector_search_endpoint
@@ -31,7 +34,12 @@ class VectorSearchManager:
         self.schema = config.schema
         self.usage_policy_id = usage_policy_id
 
-        self.client = VectorSearchClient()
+        # Get credentials from WorkspaceClient for authentication
+        w = WorkspaceClient()
+        self.client = VectorSearchClient(
+            workspace_url=w.config.host,
+            personal_access_token=w.tokens.create(lifetime_seconds=1200).token_value,
+        )
         self.index_name = f"{self.catalog}.{self.schema}.valuation_index"
 
     def create_endpoint_if_not_exists(self) -> None:

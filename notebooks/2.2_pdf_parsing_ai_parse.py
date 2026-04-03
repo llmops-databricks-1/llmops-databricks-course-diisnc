@@ -13,10 +13,11 @@
 # %pip install ../valuation_curator-0.1.0-py3-none-any.whl
 # COMMAND ----------
 
-from valuation_curator.config import get_env, load_config
-from valuation_curator.data_processor import DataProcessor
 from databricks.connect import DatabricksSession
 from loguru import logger
+
+from valuation_curator.config import get_env, load_config
+from valuation_curator.data_processor import DataProcessor
 
 # COMMAND ----------
 

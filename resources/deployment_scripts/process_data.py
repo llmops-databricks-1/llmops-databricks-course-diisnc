@@ -13,11 +13,12 @@
 
 # COMMAND ----------
 
+from loguru import logger
+from pyspark.sql import SparkSession
+
 from valuation_curator.config import get_env, load_config
 from valuation_curator.data_processor import DataProcessor
 from valuation_curator.vector_search import VectorSearchManager
-from loguru import logger
-from pyspark.sql import SparkSession
 
 # COMMAND ----------
 

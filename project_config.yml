@@ -9,7 +9,9 @@ dev:
   embedding_endpoint: databricks-gte-large-en
   warehouse_id: 3a45f195a77d6027
   vector_search_endpoint: llmops_course_vs_endpoint
-  genie_space_id: 01f113061bf41578baff744a41bd9ab0
+  genie_space_id: "01f12d0e51151a0f99caa978a12e068a"
+  usage_policy_id: 686c435d-90af-4c40-9ca4-442d4a3d8899
+  lakebase_project_id: valuation-agent-lakebase
 
 # Acceptance/Staging environment
 acc:
@@ -20,7 +22,9 @@ acc:
   embedding_endpoint: databricks-gte-large-en
   warehouse_id: 3a45f195a77d6027
   vector_search_endpoint: llmops_course_vs_endpoint
-  genie_space_id: 01f113061bf41578baff744a41bd9ab0
+  genie_space_id: "01f12d0e51151a0f99caa978a12e068a"
+  usage_policy_id: 686c435d-90af-4c40-9ca4-442d4a3d8899
+  lakebase_project_id: valuation-agent-lakebase
 
 # Production environment
 prd:
@@ -31,7 +35,9 @@ prd:
   embedding_endpoint: databricks-gte-large-en
   warehouse_id: 3a45f195a77d6027
   vector_search_endpoint: llmops_course_vs_endpoint
-  genie_space_id: 01f113061bf41578baff744a41bd9ab0
+  genie_space_id: "01f12d0e51151a0f99caa978a12e068a"
+  usage_policy_id: 686c435d-90af-4c40-9ca4-442d4a3d8899
+  lakebase_project_id: valuation-agent-lakebase
 
 # Model configuration
 model_config:
