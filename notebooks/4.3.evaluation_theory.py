@@ -9,6 +9,13 @@
 # MAGIC - Guidelines vs Judges
 # MAGIC - Custom scorers
 # MAGIC - Judge alignment with human feedback
+# MAGIC Note 1: in case we get weird results with judges (model), update mlflow version or
+# MAGIC change LLM model.
+# MAGIC Note 2: It's possible to put guardrails on the llm call. Databricks ->
+# MAGIC serving endpoints -> model -> edit AI gateway -> AI guardrails. The input
+# MAGIC guardrails can be set up with our current implementation, but the output one are
+# MAGIC not compatible with the streaming implementation. Other alternative is having
+# MAGIC another model as a guardrail.
 
 # COMMAND ----------
 
@@ -27,7 +34,7 @@ from valuation_curator.evaluation import (
     # hook_in_post_guideline,
     # scope_guideline,
     # word_count_check,
-    # mentions_papers
+    # mentions_valuation_docs
 )
 
 # COMMAND ----------
@@ -132,7 +139,7 @@ mlflow.set_experiment(cfg.experiment_name)
 # The polite_tone_guideline is already imported from our package
 # It includes guidelines for polite and professional tone
 
-logger.info("Using Guidelines Scorer from arxiv_curator.evaluation:")
+logger.info("Using Guidelines Scorer from valuation_curator.evaluation:")
 logger.info(f"  Name: {polite_tone_guideline.name}")
 logger.info("  Type: Binary (Pass/Fail)")
 logger.info(f"  Guidelines: {len(polite_tone_guideline.guidelines)} rules")
@@ -140,7 +147,9 @@ logger.info("Also available from package:")
 logger.info("  - hook_in_post_guideline: Checks for engaging hooks")
 logger.info("  - scope_guideline: Ensures responses stay on topic")
 logger.info("  - word_count_check: Custom scorer for word count")
-logger.info("  - mentions_papers: Checks if response mentions research papers")
+logger.info(
+    "  - mentions_valuation_docs: Checks if response mentions customs valuation documents"
+)
 
 # COMMAND ----------
 

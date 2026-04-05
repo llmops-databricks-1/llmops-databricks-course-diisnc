@@ -17,10 +17,10 @@ polite_tone_guideline = Guidelines(
 scope_guideline = Guidelines(
     name="stays_in_scope",
     guidelines=[
-        "The response must only discuss topics related to valuation documents",
+        "The response must only discuss topics related to customs valuation documents",
         "The response should not answer questions about unrelated topics",
-        "If asked about non-valuation topics, politely redirect to valuation-related"
-        "questions",
+        "If asked about non-customs valuation topics, politely redirect to customs "
+        "valuation-related questions",
     ],
     model="databricks:/databricks-gpt-oss-120b",
 )
@@ -98,14 +98,14 @@ def word_count_check(outputs: list) -> bool:
 
 
 @mlflow.genai.scorer
-def mentions_papers(outputs: list) -> bool:
-    """Check if the response mentions specific papers or research.
+def mentions_valuation_docs(outputs: list) -> bool:
+    """Check if the response mentions specific customs valuation documents.
 
     Args:
         outputs: List of output dictionaries
 
     Returns:
-        True if papers are mentioned, False otherwise
+        True if customs valuation documents are mentioned, False otherwise
     """
     # Handle different output formats
     if isinstance(outputs, list) and len(outputs) > 0:
@@ -119,7 +119,16 @@ def mentions_papers(outputs: list) -> bool:
         text = str(outputs)
 
     text_lower = text.lower()
-    keywords = ["paper", "study", "research", "arxiv", "author", "published"]
+    keywords = [
+        "invoice",
+        "royalty",
+        "declaration",
+        "valuation",
+        "invoice total",
+        "vat",
+        "currency",
+    ]
+
     return any(keyword in text_lower for keyword in keywords)
 
 
