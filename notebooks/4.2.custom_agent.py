@@ -33,6 +33,9 @@ from valuation_curator.config import get_env, load_config
 # COMMAND ----------
 
 # Setup MLflow tracking
+# if running locally (db runtime not available in env variables), we load_dotenv() which
+# has profile name (.env file)
+# if running in databricks, mlflow will use workspace context automatically
 if "DATABRICKS_RUNTIME_VERSION" not in os.environ:
     load_dotenv()
     profile = os.environ["PROFILE"]
@@ -55,6 +58,7 @@ w = WorkspaceClient()
 
 # MAGIC %md
 # MAGIC ## 1. Agent with Tracing - Architecture
+# MAGIC Not using persistent memory in this example, but the code is there.
 # MAGIC
 # MAGIC ```
 # MAGIC User Request
@@ -138,6 +142,7 @@ w = WorkspaceClient()
 # Create agent with MCP tools
 agent = ValuationAgent(
     llm_endpoint=cfg.llm_endpoint,
+    # here we can use system_prompt=cfg.system_prompt
     system_prompt="You are a helpful research assistant. Use vector search to find papers"
     "and Genie to query data.",
     catalog=cfg.catalog,
@@ -167,7 +172,7 @@ test_request = ResponsesAgentRequest(
     input=[
         {
             "role": "user",
-            "content": "Find papers about transformers and attention mechanisms",
+            "content": "Find documents with 3.5% royalty.",
         }
     ],
     custom_inputs={"session_id": session_id, "request_id": request_id},
@@ -191,7 +196,7 @@ logger.info("✓ Trace created! Check MLflow UI for complete trace.")
 
 # COMMAND ----------
 
-# Start a conversation
+# Start a conversation (conversation_session)
 conversation_session = (
     f"s-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{random.randint(100000, 999999)}"
 )
@@ -220,7 +225,7 @@ request2 = ResponsesAgentRequest(
         {"role": "user", "content": "Now multiply that by 2"},
     ],
     custom_inputs={
-        "session_id": conversation_session,
+        "session_id": conversation_session,  # re-use conversation_session
         "request_id": f"req-2-{uuid4().hex[:8]}",
     },
 )
@@ -240,6 +245,7 @@ logger.info(f"✓ Multi-turn conversation traced with session: {conversation_ses
 # COMMAND ----------
 
 # Search traces by session (returns DataFrame)
+# from previous conversation_session
 session_traces_df = mlflow.search_traces(
     filter_string=f"request_metadata.`mlflow.trace.session` = '{conversation_session}'",
     order_by=["timestamp_ms ASC"],
@@ -263,6 +269,8 @@ if len(session_traces_df) > 0:
         logger.info(str(session_traces_df.info()))
 else:
     logger.info("No traces found for this session.")
+
+# note: traces also available in experiments->valuation-curator-course->list of trace id
 
 # COMMAND ----------
 
@@ -345,6 +353,14 @@ if len(recent_traces_df) > 0:
     if "spans" in trace:
         spans_count = len(trace["spans"]) if trace["spans"] else 0
         print(f"\nSpans: {spans_count}")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC Note: prompt registry in mlflow: still in beta. Usually not needed if we store
+# MAGIC the prompts in the repo, then from the git sha it's easy to track the prompt that
+# MAGIC was used in a certain experiment. An exception would be if we would like to
+# MAGIC measure/trace some metrics against a certain prompt.
 
 # COMMAND ----------
 

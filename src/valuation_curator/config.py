@@ -19,7 +19,7 @@ class ProjectConfig(BaseModel):
     embedding_endpoint: str = Field(..., description="Embedding endpoint name")
     warehouse_id: str = Field(..., description="Warehouse ID")
     vector_search_endpoint: str = Field(..., description="Vector search endpoint name")
-    lakebase_project_id: str = Field(..., description="Lakebase project id")
+    lakebase_project_id: str | None = Field(None, description="Lakebase project id")
     genie_space_id: str | None = Field(
         None, description="Genie space ID for MCP integration"
     )

@@ -22,6 +22,11 @@ from mlflow.models.resources import (
     DatabricksTable,
     DatabricksVectorSearchIndex,
 )
+
+# ResponsesAgent is openAI API compatible.
+# We can use openAI library to call our agent once deployed.
+# If we used python model we could only call the endpoint in a python model compatible
+# way, and also does not support streaming.
 from mlflow.pyfunc import ResponsesAgent
 from mlflow.types.responses import (
     ResponsesAgentRequest,
@@ -33,7 +38,8 @@ from mlflow.types.responses import (
 
 from valuation_curator.config import ProjectConfig
 from valuation_curator.mcp import create_mcp_tools
-from valuation_curator.memory import LakebaseMemory
+
+# from valuation_curator.memory import LakebaseMemory
 
 
 class ValuationAgent(ResponsesAgent):
@@ -46,22 +52,29 @@ class ValuationAgent(ResponsesAgent):
         genie_space_id: str | None = None,
         lakebase_project_id: str | None = None,
     ):
-        """Initializes the Arxiv Agent."""
+        """Initializes the Valuation Agent."""
         nest_asyncio.apply()
 
         self.system_prompt = system_prompt
         self.llm_endpoint = llm_endpoint
+        # for now, we're authenticating as a user in my machine, but behind an agent in
+        # prod is different (serving principle)
         self.workspace_client = WorkspaceClient()
+
+        # initializes get_open_ai_client tool, follows openAI API. We're not using it
+        # directly bc it comes also with authentication for all accesses. The agent needs
+        # to have access to that endpoint. If we don't do this, we'd have to take care of
+        # the auth ourselves in the agent logic (like we did in the course for lakebase)
         self.model_serving_client = (
             self.workspace_client.serving_endpoints.get_open_ai_client()
         )
 
         # Initialize Lakebase memory if configured
-        self.memory: LakebaseMemory | None = None
-        if lakebase_project_id:
-            self.memory = LakebaseMemory(
-                project_id=lakebase_project_id,
-            )
+        # self.memory: LakebaseMemory | None = None
+        # if lakebase_project_id:
+        #     self.memory = LakebaseMemory(
+        #         project_id=lakebase_project_id,
+        #     )
 
         # Create tools from config
         host = self.workspace_client.config.host
@@ -76,6 +89,8 @@ class ValuationAgent(ResponsesAgent):
         )
         self._tools_dict = {tool.name: tool for tool in tools}
 
+    # some functions are very small but it's bc we care about the decorators for tracing
+    # which can only be applied at function level. Can also use span funcionality.
     def get_tool_specs(self) -> list[dict]:
         """Returns tool specifications in the format OpenAI expects."""
         return [tool_info.spec for tool_info in self._tools_dict.values()]
@@ -85,6 +100,15 @@ class ValuationAgent(ResponsesAgent):
         """Executes the specified tool with the given arguments."""
         return self._tools_dict[tool_name].exec_fn(**args)
 
+    # on this function, we did not use @mlflow.trace bc the default output would be very
+    # noisy and pollute our tracing table (e.g., difficult to track #tokens LLM used).
+    # Instead, mlflow.start_span was applied in the caller function to capture specific
+    # behaviour like "model" and "usage". We can also set inputs on the span.
+    # ------------------------------------------------------------------------------
+    # x-request-id: capture from the response header after calling LLM. Can be used later
+    # for usage monitoring related to the LLM (model has system serving endpoint usage
+    # (table) with databricks_request_id that identifies the system and request, and later
+    # we might want to fetch with this id other info from the table like the requester
     @backoff.on_exception(backoff.expo, openai.RateLimitError)
     def call_llm(
         self,
@@ -112,9 +136,11 @@ class ValuationAgent(ResponsesAgent):
                     "usage": last_chunk.get("usage"),
                 }
                 if llm_request_id:
-                    outputs["llm_request_id"] = llm_request_id
+                    outputs["llm_request_id"] = llm_request_id  # only "model" and "usage"
                 span.set_outputs(outputs)
 
+    # helps maintaining the code cleaner
+    # https://mlflow.org/docs/latest/genai/flavors/responses-agent-intro#creating-agent-output
     def handle_tool_call(
         self, tool_call: dict[str, Any], messages: list[dict[str, Any]]
     ) -> ResponsesAgentStreamEvent:
@@ -133,17 +159,22 @@ class ValuationAgent(ResponsesAgent):
             type="response.output_item.done", item=tool_call_output
         )
 
+    # load_memory is just calling load_messages and would not need a dedicated function,
+    # but it's here for trace purposes
     @mlflow.trace(span_type=SpanType.RETRIEVER, name="memory_load")
     def load_memory(self, session_id: str) -> list[dict[str, Any]]:
         """Load previous messages from Lakebase memory."""
-        if self.memory:
-            return self.memory.load_messages(session_id)
+        # if self.memory:
+        #     return self.memory.load_messages(session_id)
         return []
 
+    # save_memory is just calling save_memory and would not need a dedicated function,
+    # but it's here for trace purposes
     @mlflow.trace(span_type=SpanType.CHAIN, name="memory_save")
     def save_memory(self, session_id: str, messages: list[dict[str, Any]]) -> None:
         """Save new messages to Lakebase memory."""
-        self.memory.save_messages(session_id, messages)
+        # self.memory.save_messages(session_id, messages)
+        pass
 
     def _extract_output_items(
         self,
@@ -159,6 +190,7 @@ class ValuationAgent(ResponsesAgent):
                 items.append(item)
         return items
 
+    # increase max_iter if it stops often without output
     def _run_tool_loop(
         self,
         messages: list[dict[str, Any]],
@@ -191,6 +223,7 @@ class ValuationAgent(ResponsesAgent):
             )
         return events
 
+    # main function
     @mlflow.trace(span_type=SpanType.CHAIN)
     def call_and_run_tools(
         self,
@@ -206,6 +239,9 @@ class ValuationAgent(ResponsesAgent):
             messages.extend(previous_messages)
         messages.extend(request_input)
 
+        # these 3 things really matter for rollback: e.g. go back to previous prod version
+        # bc the current one crashed.
+        # "git_sha": we want to know what model was deployed in a specific commit
         mlflow.update_current_trace(
             tags={
                 "git_sha": os.getenv("GIT_SHA", "local"),
@@ -220,11 +256,11 @@ class ValuationAgent(ResponsesAgent):
 
         events = self._run_tool_loop(messages)
 
-        if session_id and self.memory:
-            self.save_memory(
-                session_id,
-                request_input + self._extract_output_items(events),
-            )
+        # if session_id and self.memory:
+        #     self.save_memory(
+        #         session_id,
+        #         request_input + self._extract_output_items(events),
+        #     )
         return events
 
     def predict(self, request: ResponsesAgentRequest) -> ResponsesAgentResponse:
@@ -234,6 +270,9 @@ class ValuationAgent(ResponsesAgent):
             custom_outputs=request.custom_inputs,
         )
 
+    # if custom input not provided it will not use the session and won't load memory, and
+    # there will be a difference in traces (one has it, other doesn't)
+    # nb 4.4 not provided, nb 4.2 provided, we can analyze difference
     @mlflow.trace(span_type=SpanType.AGENT)
     def predict_stream(
         self, request: ResponsesAgentRequest
@@ -243,7 +282,8 @@ class ValuationAgent(ResponsesAgent):
         request_id = custom.get("request_id")
 
         previous_messages = (
-            self.load_memory(session_id) if session_id and self.memory else []
+            # self.load_memory(session_id) if session_id and self.memory else []
+            self.load_memory(session_id) if session_id else []
         )
 
         request_input = [i.model_dump() for i in request.input]
@@ -282,8 +322,12 @@ def log_register_agent(
     resources = [
         DatabricksServingEndpoint(endpoint_name=cfg.llm_endpoint),
         DatabricksGenieSpace(genie_space_id=cfg.genie_space_id),
-        DatabricksVectorSearchIndex(index_name=f"{cfg.catalog}.{cfg.schema}.arxiv_index"),
-        DatabricksTable(table_name=f"{cfg.catalog}.{cfg.schema}.arxiv_papers"),
+        DatabricksVectorSearchIndex(
+            index_name=f"{cfg.catalog}.{cfg.schema}.valuation_index"
+        ),
+        DatabricksTable(
+            table_name=f"{cfg.catalog}.{cfg.schema}.customs_valuation_metadata"
+        ),
         DatabricksSQLWarehouse(warehouse_id=cfg.warehouse_id),
         DatabricksServingEndpoint(endpoint_name="databricks-bge-large-en"),
     ]
@@ -310,7 +354,7 @@ def log_register_agent(
     ts = datetime.now().strftime("%Y-%m-%d")
 
     with mlflow.start_run(
-        run_name=f"arxiv-mcp-agent-{ts}",
+        run_name=f"valuation-mcp-agent-{ts}",
         tags={"git_sha": git_sha, "run_id": run_id},
     ):
         model_info = mlflow.pyfunc.log_model(

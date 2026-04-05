@@ -9,6 +9,8 @@
 # MAGIC - Manual span creation
 # MAGIC - Adding metadata and tags
 # MAGIC - Searching and analyzing traces
+# MAGIC Note: experiments can be stored in any location (e.g., volumes), and experiments
+# MAGIC can be created using databricks sdk or asset bundles
 
 # COMMAND ----------
 

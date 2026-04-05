@@ -208,6 +208,7 @@ df = spark.createDataFrame(cases, schema=schema)
 table_path = f"{CATALOG}.{SCHEMA}.{TABLE_NAME}"
 
 # mode("ignore") = if table does not exist, create; if exists, do nothing
+# first time bootstrap, later runs will not write and go to the next step to merge
 df.write.format("delta").mode("ignore").saveAsTable(table_path)
 
 # Upsert logic (insert-only for now, no updates to existing records)

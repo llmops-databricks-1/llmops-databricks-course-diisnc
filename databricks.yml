@@ -16,7 +16,7 @@ variables:
     description: schedule pause status
     default: PAUSED
 
-# uv build command will be run when the databricks bundle is deployed
+# uv build command will be run when the databricks bundle is deployed (no need manually)
 # path . defines the root of the project folder, where this file is located
 # uv build will access the src folder (as defined in pyproject.toml) and take the package from
 # there, building the whl (available in dist folder)
