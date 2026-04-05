@@ -1,10 +1,14 @@
-What is so special about the last paper on RAG?
-Summarize the key findings from the last paper on reasoning.
-What problem does the last paper on multi-agent systems solve?
-Tell me about the last paper on prompt engineering.
-What are the main contributions of the last paper on LLM fine-tuning?
-Explain the methodology in the last paper on chain-of-thought prompting.
-What results did the last paper on hallucination detection achieve?
-Describe the last paper on LLM benchmarks.
-What approach does the last paper on code generation propose?
-What conclusions does the last paper on embedding models draw?
+What documents have a 3.5% royalty?
+Which suppliers appear in the documents?
+What royalty rates are present across all documents?
+What was the date of the last ingested files?
+Which document has the highest royalty percentage?
+In which cases do I have anomalies?
+In which documents do we have products like leather handbags?
+How many documents do I have in spanish (es)?
+Give me all the documents from a supplier called ABC.
+Show documents from supplier DOES_NOT_EXIST_999.
+Find documents with 99% royalty.
+Which supplier has the most documents?
+List documents with royalty above 2% but below 6%, sorted descending.
+Do I have any invoices from a supplier called Elena Silva or elena silva?

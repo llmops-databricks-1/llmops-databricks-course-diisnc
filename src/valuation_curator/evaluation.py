@@ -4,6 +4,7 @@ from mlflow.genai.scorers import Guidelines
 from valuation_curator.agent import ValuationAgent
 from valuation_curator.config import ProjectConfig
 
+# these are guidelines, not judges
 polite_tone_guideline = Guidelines(
     name="polite_tone",
     guidelines=[
