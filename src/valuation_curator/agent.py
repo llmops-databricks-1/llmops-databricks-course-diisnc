@@ -200,15 +200,23 @@ class ValuationAgent(ResponsesAgent):
         events: list[ResponsesAgentStreamEvent] = []
         for _ in range(max_iter):
             last_msg = messages[-1]
-            if last_msg.get("role") == "assistant":
+            if last_msg.get("role") == "assistant":  # stop (final answer exists)
                 break
             elif last_msg.get("type") == "function_call":
                 events.append(self.handle_tool_call(last_msg, messages))
             else:
                 events.extend(
+                    # output_to_responses_items_stream: Turn raw stream chunks into
+                    # complete events and update `messages` for next-step loop decisions.
+                    #   - call_llm(messages) streams small raw pieces from the model
+                    #   - output_to_responses_items_stream(...) aggregates/appends those
+                    #     messy pieces into clean blocks the agent can use: a full
+                    #     assistant message or a full function_call. Since I need clean
+                    #     blocks to decide what to do next (func call, ...) this function
+                    #     is basically a translator + state updater
                     output_to_responses_items_stream(
-                        chunks=self.call_llm(messages),
-                        aggregator=messages,
+                        chunks=self.call_llm(messages),  # streamed chunks from llm
+                        aggregator=messages,  # append/assemble pieces into complete msgs
                     ),
                 )
         else:
@@ -273,6 +281,7 @@ class ValuationAgent(ResponsesAgent):
     # if custom input not provided it will not use the session and won't load memory, and
     # there will be a difference in traces (one has it, other doesn't)
     # nb 4.4 not provided, nb 4.2 provided, we can analyze difference
+    # Output note: in Python, a function that uses yield becomes a generator.
     @mlflow.trace(span_type=SpanType.AGENT)
     def predict_stream(
         self, request: ResponsesAgentRequest
@@ -293,6 +302,10 @@ class ValuationAgent(ResponsesAgent):
             request_id=request_id,
             session_id=session_id,
         )
+
+        # yield meaning: yield from events emits each ResponsesAgentStreamEvent one at a
+        # time. The caller can start receiving output immediately (streaming), instead of
+        # waiting for everything to finish.
         yield from events
 
 
