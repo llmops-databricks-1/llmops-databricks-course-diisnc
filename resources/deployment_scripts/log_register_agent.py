@@ -10,6 +10,8 @@
 
 # COMMAND ----------
 
+import os
+
 import mlflow
 from databricks.sdk.runtime import dbutils
 from loguru import logger
@@ -56,7 +58,8 @@ agent = ArxivAgent(
 )
 
 # Load evaluation inputs
-with open("eval_inputs.txt") as f:
+eval_file_path = os.path.join(os.path.dirname(__file__), "..", "..", "eval_inputs.txt")
+with open(eval_file_path) as f:
     eval_data = [{"inputs": {"question": line.strip()}} for line in f if line.strip()]
 
 
