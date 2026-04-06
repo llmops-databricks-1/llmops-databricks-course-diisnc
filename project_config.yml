@@ -1,36 +1,84 @@
-name: CI
+# Project Configuration for LLMOps Course
+system_prompt: |
+  You are a LinkedIn content creation assistant specialized
+  in generating engaging posts about AI and machine learning research.
 
-on:
-  pull_request:
-    branches:
-      - main
+  Your role is to:
+  1. Search for relevant arXiv papers using the vector search tool
+     based on the user's topic
+  2. Query the Genie space for additional context and insights
+     about the research area
+  3. Generate a LinkedIn post in a professional yet engaging style that:
+     - Highlights key findings or innovations from recent research
+     - Makes complex technical concepts accessible to a broad audience
+     - Includes relevant paper citations and IDs
+     - Uses a conversational tone appropriate for LinkedIn
+     - Incorporates 2-3 relevant hashtags
+     - Keeps the post concise (150-250 words)
 
-jobs:
-  pytest_and_checks:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 #v4.2.2
-        with:
-          # Fetch all history for all branches and tags
-          fetch-depth: 0
-          ref: ${{ github.head_ref }}
+  Always ground your posts in actual research findings from the tools
+  available to you.
 
-      - name: Git tag from version.txt
-        run: |
-          echo "VERSION=$(cat version.txt)"
-          git tag $VERSION
+  If conversation history is provided, use it to maintain continuity
+  with the user's previous requests — refer back to earlier topics,
+  refine previous suggestions, and avoid repeating yourself.
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@0c5e2b8115b80b4c7c5ddf6ffdd634974642d182 #v5.4.1
+# Development environment
+dev:
+  catalog: llmops_dev
+  schema: arxiv
+  volume: arxiv_files
+  llm_endpoint: databricks-llama-4-maverick
+  embedding_endpoint: databricks-gte-large-en
+  warehouse_id: 7077f4cb0e616c62
+  vector_search_endpoint: llmops_course_vs_endpoint
+  genie_space_id: "01f12f9b759a1da0807c0ae7366ee04d"
+  usage_policy_id: 686c435d-90af-4c40-9ca4-442d4a3d8899
+  lakebase_project_id: arxiv-agent-lakebase
+  experiment_name: /Shared/arxiv-curator-course
 
-      - name: Install the dependencies
-        run: |
-          uv sync --extra test
+# Acceptance/Staging environment
+acc:
+  catalog: llmops_dev
+  schema: arxiv
+  volume: arxiv_files
+  llm_endpoint: databricks-meta-llama-3-1-70b-instruct
+  embedding_endpoint: databricks-gte-large-en
+  warehouse_id: 7077f4cb0e616c62
+  vector_search_endpoint: llmops_course_vs_endpoint
+  genie_space_id: "01f12f9b759a1da0807c0ae7366ee04d"
+  usage_policy_id: 686c435d-90af-4c40-9ca4-442d4a3d8899
+  lakebase_project_id: arxiv-agent-lakebase
+  experiment_name: /Shared/arxiv-curator-course
 
-      - name: Run pre-commit checks
-        run: |
-          uv run pre-commit run --all-files
+# Production environment
+prd:
+  catalog: llmops_dev
+  schema: arxiv
+  volume: arxiv_files
+  llm_endpoint: databricks-meta-llama-3-1-70b-instruct
+  embedding_endpoint: databricks-gte-large-en
+  warehouse_id: 7077f4cb0e616c62
+  vector_search_endpoint: llmops_course_vs_endpoint
+  genie_space_id: "01f12f9b759a1da0807c0ae7366ee04d"
+  usage_policy_id: 686c435d-90af-4c40-9ca4-442d4a3d8899
+  lakebase_project_id: arxiv-agent-lakebase
+  experiment_name: /Shared/arxiv-curator-course
 
-      - name: run pytest
-        run: |
-          uv run pytest -m "not ci_exclude"
+# Model configuration
+model_config:
+  temperature: 0.7
+  max_tokens: 2000
+  top_p: 0.95
+
+# Vector search configuration
+vector_search:
+  embedding_dimension: 1024
+  similarity_metric: cosine
+  num_results: 5
+
+# Chunking configuration
+chunking:
+  chunk_size: 512
+  chunk_overlap: 50
+  separator: "\n\n"
