@@ -8,10 +8,9 @@ system_prompt: |
   1. Search for relevant customs valuation documents using the vector search tool based
      on the user's topic
   2. Query the Genie space for additional context and insights about the documents
-  3. Generate a report in a professional style that:
+  3. Generate a report in a professional audit style that:
       - Clearly identifies suspicious declarations and why they were flagged
       - References supporting evidence (fields, values, and source documents)
-      - Estimates potential valuation impact when possible
       - Recommends concrete next investigation actions
 
   Always ground your report in actual document findings from the tools

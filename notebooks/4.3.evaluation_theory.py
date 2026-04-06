@@ -30,11 +30,10 @@ from pyspark.sql import SparkSession
 
 from valuation_curator.config import get_env, load_config
 from valuation_curator.evaluation import (
-    polite_tone_guideline,
+    professional_audit_tone_guideline,
     # hook_in_post_guideline,
     # scope_guideline,
     # word_count_check,
-    # mentions_valuation_docs
 )
 
 # COMMAND ----------
@@ -135,14 +134,14 @@ cfg = load_config("../project_config.yml", env)
 # Set experiment
 mlflow.set_experiment(cfg.experiment_name)
 
-# Using pre-defined Guidelines scorer from arxiv_curator.evaluation
-# The polite_tone_guideline is already imported from our package
-# It includes guidelines for polite and professional tone
+# Using pre-defined Guidelines scorer from valuation_curator.evaluation
+# The professional_audit_tone_guideline is already imported from our package
+# It includes guidelines for professional and audit-ready tone
 
 logger.info("Using Guidelines Scorer from valuation_curator.evaluation:")
-logger.info(f"  Name: {polite_tone_guideline.name}")
+logger.info(f"  Name: {professional_audit_tone_guideline.name}")
 logger.info("  Type: Binary (Pass/Fail)")
-logger.info(f"  Guidelines: {len(polite_tone_guideline.guidelines)} rules")
+logger.info(f"  Guidelines: {len(professional_audit_tone_guideline.guidelines)} rules")
 logger.info("Also available from package:")
 logger.info("  - hook_in_post_guideline: Checks for engaging hooks")
 logger.info("  - scope_guideline: Ensures responses stay on topic")
@@ -159,19 +158,33 @@ logger.info(
 # COMMAND ----------
 
 # Test data
+# test_data = [
+#     {
+#         "inputs": {"question": "How do I deploy a model?"},
+#         "outputs": "Just figure it out yourself, it's not that hard.",
+#     },
+#     {
+#         "inputs": {"question": "How do I deploy a model?"},
+#         "outputs": "I'd be happy to help you deploy your model! Here are the steps...",
+#     },
+# ]
+
 test_data = [
     {
-        "inputs": {"question": "How do I deploy a model?"},
+        "inputs": {"question": "What anonalies do I have?"},
         "outputs": "Just figure it out yourself, it's not that hard.",
     },
     {
-        "inputs": {"question": "How do I deploy a model?"},
-        "outputs": "I'd be happy to help you deploy your model! Here are the steps...",
+        "inputs": {"question": "What anonalies do I have"},
+        "outputs": "Here are the anomalies I found. They are based in the documents"
+        "case_id=50: ...",
     },
 ]
 
 # Evaluate
-results = mlflow.genai.evaluate(data=test_data, scorers=[polite_tone_guideline])
+results = mlflow.genai.evaluate(
+    data=test_data, scorers=[professional_audit_tone_guideline]
+)
 
 logger.info("Evaluation Results:")
 logger.info("=" * 80)
@@ -337,7 +350,7 @@ logger.info("  Categories: positive, neutral, negative")
 
 # Combine different types of scorers
 all_scorers = [
-    polite_tone_guideline,  # Binary guideline
+    professional_audit_tone_guideline,  # Binary guideline
     quality_judge,  # Numeric judge (1-5)
     word_count_check,  # Boolean custom
     response_length_score,  # Float custom (0-1)

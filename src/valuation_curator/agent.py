@@ -78,13 +78,17 @@ class ValuationAgent(ResponsesAgent):
 
         # Create tools from config
         host = self.workspace_client.config.host
+        url_list = [
+            f"{host}/api/2.0/mcp/vector-search/{catalog}/{schema}",
+            f"{host}/api/2.0/mcp/genie/{genie_space_id}",
+            # UC function tool (detect_anomalies), automatically reads func metadata
+            # from UC and generates OpenAI tool spec
+            f"{host}/api/2.0/mcp/functions/{catalog}/{schema}",
+        ]
         tools = asyncio.run(
             create_mcp_tools(
                 w=self.workspace_client,
-                url_list=[
-                    f"{host}/api/2.0/mcp/vector-search/{catalog}/{schema}",
-                    f"{host}/api/2.0/mcp/genie/{genie_space_id}",
-                ],
+                url_list=url_list,
             )
         )
         self._tools_dict = {tool.name: tool for tool in tools}

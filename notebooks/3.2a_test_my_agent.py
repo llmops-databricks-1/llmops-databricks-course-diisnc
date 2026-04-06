@@ -295,6 +295,10 @@ logger.info(f"Loading tools from {len(mcp_urls)} MCP servers...")
 # Create tools: combine tools from MCP URLs
 mcp_tools = asyncio.run(create_mcp_tools(w, mcp_urls))
 
+# Filter out unwanted tools (in case I want to exclude the registered model from nb 4.4)
+# excluded_tools = [f"{cfg.catalog}__{cfg.schema}__valuation_agent"]
+# mcp_tools = [tool for tool in mcp_tools if tool.name not in excluded_tools]
+
 logger.info(f"✓ Loaded {len(mcp_tools)} tools from MCP servers")
 logger.info("Available Tools:")
 for i, tool in enumerate(mcp_tools, 1):

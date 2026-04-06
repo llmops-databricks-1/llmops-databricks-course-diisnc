@@ -16,8 +16,11 @@ from mlflow.models.resources import (
 from valuation_curator.agent import ValuationAgent
 from valuation_curator.config import ProjectConfig
 from valuation_curator.evaluation import (
+    evidence_citations_scorer,
     hook_in_post_guideline,
-    polite_tone_guideline,
+    mentions_valuation_docs,
+    professional_audit_tone_guideline,
+    uses_detect_anomalies_tool,
     word_count_check,
 )
 
@@ -53,13 +56,20 @@ def predict_fn(question: str) -> str:
 # Run evaluation
 # on the output of this cell, when we click on a trace ID, we can add feedback saying that
 # we do not agree with a certain classification. This is valid when we have a judge, not
-# when we have a guideline which is the case for word_count_check, hook_in_post_guideline
-# and polite_tone_guideline
+# when we have a guideline which is the case for word_count_check, hook_in_post_guideline,
+# and professional_audit_tone_guideline
 
 results = mlflow.genai.evaluate(
     predict_fn=predict_fn,
     data=eval_data,
-    scorers=[word_count_check, polite_tone_guideline, hook_in_post_guideline],
+    scorers=[
+        word_count_check,
+        professional_audit_tone_guideline,
+        hook_in_post_guideline,
+        mentions_valuation_docs,
+        evidence_citations_scorer,
+        uses_detect_anomalies_tool,
+    ],
 )
 
 # COMMAND ----------
