@@ -15,7 +15,7 @@ env = get_widget("env", "dev")
 secret_scope = "arxiv-agent-scope"
 
 # Load configuration
-cfg = ProjectConfig.from_yaml("project_config.yml", env=env)
+cfg = ProjectConfig.from_yaml("../../project_config.yml", env=env)
 
 # Get model details
 model_name = f"{cfg.catalog}.{cfg.schema}.arxiv_agent"
@@ -47,8 +47,8 @@ agents.deploy(
         "MODEL_VERSION": model_version,
         "MODEL_SERVING_ENDPOINT_NAME": endpoint_name,
         "MLFLOW_EXPERIMENT_ID": experiment.experiment_id,
-        "LAKEBASE_SP_CLIENT_ID": f"{{{{secrets/{secret_scope}/client-id}}}}",
-        "LAKEBASE_SP_CLIENT_SECRET": f"{{{{secrets/{secret_scope}/client-secret}}}}",
+        "LAKEBASE_SP_CLIENT_ID": f"{{secrets/{secret_scope}/client-id}}",
+        "LAKEBASE_SP_CLIENT_SECRET": f"{{secrets/{secret_scope}/client-secret}}",
         "LAKEBASE_SP_HOST": WorkspaceClient().config.host,
     },
 )
