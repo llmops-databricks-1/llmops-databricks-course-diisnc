@@ -61,7 +61,7 @@ prd:
   warehouse_id: 7077f4cb0e616c62
   vector_search_endpoint: llmops_course_vs_endpoint
   genie_space_id: 01f12f9b759a1da0807c0ae7366ee04d
-  usage_policy_id: 686c435d-90af-4c40-9ca4-442d4a3d8899
+  usage_policy_id: 686c435d-90af-4c40-9ca4-442d4a3d8899 
   lakebase_project_id: arxiv-agent-lakebase
   experiment_name: /Shared/arxiv-curator-course
 
