@@ -19,7 +19,7 @@ cfg = ProjectConfig.from_yaml("../../project_config.yml", env=env)
 
 # Get model details
 model_name = f"{cfg.catalog}.{cfg.schema}.arxiv_agent"
-endpoint_name = "arxiv-agent-endpoint-course"
+endpoint_name = f"arxiv-agent-endpoint-{env}-course"
 
 client = MlflowClient()
 model_version = client.get_model_version_by_alias(model_name, "latest-model").version
