@@ -76,11 +76,19 @@ class DataProcessor:
                 SELECT max(processed)
                 FROM {self.papers_table}
             """).collect()
-            start = str(result[0][0])
-            logger.info(f"Found existing arxiv_papers table. Starting from: {start}")
+            max_processed = result[0][0]
+
+            if max_processed is not None:
+                start = str(max_processed)
+                logger.info(f"Found existing arxiv_papers table. Starting from: {start}")
+            else:
+                start = time.strftime("%Y%m%d%H%M", time.gmtime(time.time() - 24 * 3600 * 3))
+                logger.info(
+                    f"Table exists but no processed records. Starting from 3 days ago: {start}"
+                )
         else:
             start = time.strftime("%Y%m%d%H%M", time.gmtime(time.time() - 24 * 3600 * 3))
-            logger.info(f"No existing arxiv_papers table. " f"Starting from 3 days ago: {start}")
+            logger.info(f"No existing arxiv_papers table. Starting from 3 days ago: {start}")
         return start
 
     def download_and_store_papers(
