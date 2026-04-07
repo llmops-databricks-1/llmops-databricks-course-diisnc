@@ -62,8 +62,8 @@ notebook_path = (
     dbutils.notebook.entry_point.getDbutils().notebook().getContext().notebookPath().get()
 )
 bundle_root = "/".join(
-    notebook_path.split("/")[:-2]
-)  # Go up 2 levels from resources/deployment_scripts
+    notebook_path.split("/")[:-3]
+)  # Go up 3 levels from resources/deployment_scripts to bundle root
 eval_file_path = f"/Workspace{bundle_root}/files/eval_inputs.txt"
 
 with open(eval_file_path) as f:
