@@ -1,17 +1,17 @@
 # Databricks notebook source
 from databricks import agents
 from databricks.sdk import WorkspaceClient
-from mlflow import MlflowClient
+from databricks.sdk.runtime import dbutils
 from loguru import logger
+from mlflow import MlflowClient
 
 from arxiv_curator.config import ProjectConfig
-from arxiv_curator.utils.common import get_widget
 
 # COMMAND ----------
 
-# Get parameters
-git_sha = get_widget("git_sha", "local")
-env = get_widget("env", "dev")
+# Get parameters (passed via base_parameters in job YAML)
+git_sha = dbutils.widgets.get("git_sha")
+env = dbutils.widgets.get("env")
 secret_scope = "arxiv-agent-scope"
 
 # Load configuration
@@ -19,14 +19,15 @@ cfg = ProjectConfig.from_yaml("../../project_config.yml", env=env)
 
 # Get model details
 model_name = f"{cfg.catalog}.{cfg.schema}.arxiv_agent"
+endpoint_name = "arxiv-agent-endpoint-course"
+
 client = MlflowClient()
 model_version = client.get_model_version_by_alias(model_name, "latest-model").version
-endpoint_name = f"arxiv-agent-{env}"
 
 # Get experiment ID
 experiment = client.get_experiment_by_name(cfg.experiment_name)
 
-logger.info(f"Deploying agent:")
+logger.info("Deploying agent:")
 logger.info(f"  Model: {model_name}")
 logger.info(f"  Version: {model_version}")
 logger.info(f"  Endpoint: {endpoint_name}")
@@ -53,4 +54,4 @@ agents.deploy(
     },
 )
 
-logger.info(f"✓ Deployment complete!")
+logger.info("✓ Deployment complete!")

@@ -52,9 +52,7 @@ class ArxivAgent(ResponsesAgent):
         self.system_prompt = system_prompt
         self.llm_endpoint = llm_endpoint
         self.workspace_client = WorkspaceClient()
-        self.model_serving_client = (
-            self.workspace_client.serving_endpoints.get_open_ai_client()
-        )
+        self.model_serving_client = self.workspace_client.serving_endpoints.get_open_ai_client()
 
         # Initialize Lakebase memory if configured
         self.memory: LakebaseMemory | None = None
@@ -65,13 +63,15 @@ class ArxivAgent(ResponsesAgent):
 
         # Create tools from config
         host = self.workspace_client.config.host
-        tools = asyncio.run(create_mcp_tools(
-            w=self.workspace_client,
-            url_list=[
-                f"{host}/api/2.0/mcp/vector-search/{catalog}/{schema}",
-                f"{host}/api/2.0/mcp/genie/{genie_space_id}",
-            ],
-        ))
+        tools = asyncio.run(
+            create_mcp_tools(
+                w=self.workspace_client,
+                url_list=[
+                    f"{host}/api/2.0/mcp/vector-search/{catalog}/{schema}",
+                    f"{host}/api/2.0/mcp/genie/{genie_space_id}",
+                ],
+            )
+        )
         self._tools_dict = {tool.name: tool for tool in tools}
 
     def get_tool_specs(self) -> list[dict]:
@@ -89,9 +89,7 @@ class ArxivAgent(ResponsesAgent):
         messages: list[dict[str, Any]],
     ) -> Generator[dict[str, Any], None, None]:
         with warnings.catch_warnings():
-            warnings.filterwarnings(
-                "ignore", message="PydanticSerializationUnexpectedValue"
-            )
+            warnings.filterwarnings("ignore", message="PydanticSerializationUnexpectedValue")
             stream = self.model_serving_client.chat.completions.create(
                 model=self.llm_endpoint,
                 messages=to_chat_completions_input(messages),
@@ -123,13 +121,9 @@ class ArxivAgent(ResponsesAgent):
         args = json.loads(tool_call["arguments"])
         result = str(self.execute_tool(tool_name=tool_call["name"], args=args))
 
-        tool_call_output = self.create_function_call_output_item(
-            tool_call["call_id"], result
-        )
+        tool_call_output = self.create_function_call_output_item(tool_call["call_id"], result)
         messages.append(tool_call_output)
-        return ResponsesAgentStreamEvent(
-            type="response.output_item.done", item=tool_call_output
-        )
+        return ResponsesAgentStreamEvent(type="response.output_item.done", item=tool_call_output)
 
     @mlflow.trace(span_type=SpanType.RETRIEVER, name="memory_load")
     def load_memory(self, session_id: str) -> list[dict[str, Any]]:
@@ -139,14 +133,13 @@ class ArxivAgent(ResponsesAgent):
         return []
 
     @mlflow.trace(span_type=SpanType.CHAIN, name="memory_save")
-    def save_memory(
-        self, session_id: str, messages: list[dict[str, Any]]
-    ) -> None:
+    def save_memory(self, session_id: str, messages: list[dict[str, Any]]) -> None:
         """Save new messages to Lakebase memory."""
         self.memory.save_messages(session_id, messages)
 
     def _extract_output_items(
-        self, events: list[ResponsesAgentStreamEvent],
+        self,
+        events: list[ResponsesAgentStreamEvent],
     ) -> list[dict[str, Any]]:
         """Extract and serialize output items from stream events."""
         items = []
@@ -208,12 +201,10 @@ class ArxivAgent(ResponsesAgent):
         mlflow.update_current_trace(
             tags={
                 "git_sha": os.getenv("GIT_SHA", "local"),
-                "model_serving_endpoint_name": os.getenv(
-                    "MODEL_SERVING_ENDPOINT_NAME", "local"),
+                "model_serving_endpoint_name": os.getenv("MODEL_SERVING_ENDPOINT_NAME", "local"),
                 "model_version": os.getenv("MODEL_VERSION", "local"),
             },
-            metadata=(
-                {"mlflow.trace.session": session_id} if session_id else {}),
+            metadata=({"mlflow.trace.session": session_id} if session_id else {}),
             client_request_id=request_id,
         )
 
@@ -241,10 +232,7 @@ class ArxivAgent(ResponsesAgent):
         session_id = custom.get("session_id")
         request_id = custom.get("request_id")
 
-        previous_messages = (
-            self.load_memory(session_id)
-            if session_id and self.memory else []
-        )
+        previous_messages = self.load_memory(session_id) if session_id and self.memory else []
 
         request_input = [i.model_dump() for i in request.input]
         events = self.call_and_run_tools(
@@ -254,6 +242,7 @@ class ArxivAgent(ResponsesAgent):
             session_id=session_id,
         )
         yield from events
+
 
 def log_register_agent(
     cfg: ProjectConfig,
@@ -281,9 +270,7 @@ def log_register_agent(
     resources = [
         DatabricksServingEndpoint(endpoint_name=cfg.llm_endpoint),
         DatabricksGenieSpace(genie_space_id=cfg.genie_space_id),
-        DatabricksVectorSearchIndex(
-            index_name=f"{cfg.catalog}.{cfg.schema}.arxiv_index"
-        ),
+        DatabricksVectorSearchIndex(index_name=f"{cfg.catalog}.{cfg.schema}.arxiv_index"),
         DatabricksTable(table_name=f"{cfg.catalog}.{cfg.schema}.arxiv_papers"),
         DatabricksSQLWarehouse(warehouse_id=cfg.warehouse_id),
         DatabricksServingEndpoint(endpoint_name="databricks-bge-large-en"),
@@ -299,10 +286,12 @@ def log_register_agent(
     }
 
     test_request = {
-    "input": [
-        {"role": "user",
-         "content": "What are recent papers about LLMs and reasoning?"}
-    ]
+        "input": [
+            {
+                "role": "user",
+                "content": "What are recent papers about LLMs and reasoning?",
+            }
+        ]
     }
 
     mlflow.set_experiment(cfg.experiment_name)
@@ -327,7 +316,7 @@ def log_register_agent(
         model_uri=model_info.model_uri,
         name=model_name,
         env_pack="databricks_model_serving",
-        tags={"git_sha": git_sha, "run_id": run_id}
+        tags={"git_sha": git_sha, "run_id": run_id},
     )
     logger.info(f"Registered version: {registered_model.version}")
 

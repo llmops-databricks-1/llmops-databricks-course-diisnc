@@ -23,7 +23,7 @@ def serve_model(
     workload_size: str = "Small",
 ) -> None:
     """Deploy a model to a serving endpoint.
-    
+
     Args:
         entity_name: Fully qualified model name (catalog.schema.model)
         entity_version: Model version to deploy
@@ -42,7 +42,7 @@ def serve_model(
             scale_to_zero_enabled=scale_to_zero_enabled,
             workload_size=workload_size,
             entity_version=entity_version,
-            environment_vars=env_vars or {}
+            environment_vars=env_vars or {},
         )
     ]
 
@@ -56,9 +56,7 @@ def serve_model(
     )
 
     workspace = WorkspaceClient()
-    endpoint_exists = any(
-        item.name == endpoint_name for item in workspace.serving_endpoints.list()
-    )
+    endpoint_exists = any(item.name == endpoint_name for item in workspace.serving_endpoints.list())
 
     if not endpoint_exists:
         print(f"Creating serving endpoint: {endpoint_name}")
@@ -82,21 +80,21 @@ def serve_model(
 
 def get_endpoint_status(endpoint_name: str) -> dict:
     """Get the status of a serving endpoint.
-    
+
     Args:
         endpoint_name: Name of the serving endpoint
-        
+
     Returns:
         Dictionary with endpoint status information
     """
     workspace = WorkspaceClient()
     endpoint = workspace.serving_endpoints.get(endpoint_name)
-    
+
     return {
         "name": endpoint.name,
         "state": endpoint.state.config_update if endpoint.state else "UNKNOWN",
         "ready": endpoint.state.ready if endpoint.state else "UNKNOWN",
-        "url": endpoint.url if hasattr(endpoint, 'url') else None,
+        "url": endpoint.url if hasattr(endpoint, "url") else None,
     }
 
 

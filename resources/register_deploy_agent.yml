@@ -4,6 +4,7 @@ resources:
       name: arxiv-agent-log-register
       tags:
         project_name: "arxiv-curator"
+        environment: ${bundle.target}
       environments:
         - environment_key: default
           spec:

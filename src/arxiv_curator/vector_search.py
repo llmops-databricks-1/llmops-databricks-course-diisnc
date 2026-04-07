@@ -45,17 +45,21 @@ class VectorSearchManager:
     def create_endpoint_if_not_exists(self) -> None:
         """Create vector search endpoint if it doesn't exist."""
         endpoints_response = self.client.list_endpoints()
-        endpoints = endpoints_response.get("endpoints", []) if isinstance(endpoints_response, dict) else []
+        endpoints = (
+            endpoints_response.get("endpoints", []) if isinstance(endpoints_response, dict) else []
+        )
         endpoint_exists = any(
-            (ep.get("name") if isinstance(ep, dict) else getattr(ep, "name", None)) == self.endpoint_name
+            (ep.get("name") if isinstance(ep, dict) else getattr(ep, "name", None))
+            == self.endpoint_name
             for ep in endpoints
         )
 
         if not endpoint_exists:
             logger.info(f"Creating vector search endpoint: {self.endpoint_name}")
             self.client.create_endpoint_and_wait(
-                name=self.endpoint_name, endpoint_type="STANDARD",
-                usage_policy_id=self.usage_policy_id
+                name=self.endpoint_name,
+                endpoint_type="STANDARD",
+                usage_policy_id=self.usage_policy_id,
             )
             logger.info(f"✓ Vector search endpoint created: {self.endpoint_name}")
         else:
@@ -88,7 +92,7 @@ class VectorSearchManager:
                 primary_key="id",
                 embedding_source_column="text",
                 embedding_model_endpoint_name=self.embedding_model,
-                usage_policy_id=self.usage_policy_id
+                usage_policy_id=self.usage_policy_id,
             )
             logger.info(f"✓ Vector search index created: {self.index_name}")
             return index
@@ -106,19 +110,14 @@ class VectorSearchManager:
         index.sync()
         logger.info("✓ Index sync triggered")
 
-    def search(
-        self,
-        query: str,
-        num_results: int = 5,
-        filters: dict | None = None
-    ) -> dict:
+    def search(self, query: str, num_results: int = 5, filters: dict | None = None) -> dict:
         """Search the vector index.
-        
+
         Args:
             query: Search query text
             num_results: Number of results to return
             filters: Optional filters to apply
-            
+
         Returns:
             Search results dictionary
         """
@@ -127,6 +126,6 @@ class VectorSearchManager:
             query_text=query,
             columns=["id", "text", "metadata"],
             num_results=num_results,
-            filters=filters
+            filters=filters,
         )
         return results

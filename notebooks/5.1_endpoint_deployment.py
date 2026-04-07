@@ -1,27 +1,27 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # Lecture 5.1: Endpoint Deployment
+# MAGIC # Lecture 5.1: Agent Deployment & Testing
 # MAGIC
 # MAGIC ## Topics Covered:
-# MAGIC - Creating Model Serving endpoints
-# MAGIC - Endpoint configuration and scaling
-# MAGIC - Deploying models from Unity Catalog
+# MAGIC - Deploying agents using `agents.deploy()`
+# MAGIC - Configuring environment variables and secrets
 # MAGIC - Testing deployed endpoints
-# MAGIC - Using the serving utilities from arxiv_curator
-
-# COMMAND ----------
-import time
-from databricks.sdk import WorkspaceClient
-import mlflow
-from pyspark.sql import SparkSession
-from loguru import logger
-
-from arxiv_curator.config import load_config, get_env
+# MAGIC - Using OpenAI-compatible client
+# MAGIC
+# MAGIC ## Prerequisites:
+# MAGIC - For local execution: `pip install mlflow[databricks]` to access Unity Catalog models
 
 # COMMAND ----------
 
-# Setup
 import os
+import mlflow
+from databricks import agents
+from databricks.sdk import WorkspaceClient
+from mlflow import MlflowClient
+
+from arxiv_curator.config import ProjectConfig
+
+# Setup MLflow tracking
 if "DATABRICKS_RUNTIME_VERSION" not in os.environ:
     from dotenv import load_dotenv
     load_dotenv()
@@ -29,299 +29,103 @@ if "DATABRICKS_RUNTIME_VERSION" not in os.environ:
     mlflow.set_tracking_uri(f"databricks://{profile}")
     mlflow.set_registry_uri(f"databricks-uc://{profile}")
 
-w = WorkspaceClient()
-spark = SparkSession.builder.getOrCreate()
+cfg = ProjectConfig.from_yaml("../project_config.yml")
 
-# Load configuration
-env = get_env(spark)
-cfg = load_config("../project_config.yml", env)
-
-logger.info(f"Environment: {env}")
-logger.info(f"Catalog: {cfg.catalog}")
-logger.info(f"Schema: {cfg.schema}")
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## 1. Model Serving Endpoints Overview
-# MAGIC
-# MAGIC **Databricks Model Serving** provides:
-# MAGIC - Scalable, low-latency inference
-# MAGIC - Auto-scaling based on traffic
-# MAGIC - A/B testing and traffic splitting
-# MAGIC - Inference tables for monitoring
-# MAGIC - Built-in authentication and rate limiting
-# MAGIC
-# MAGIC ### Endpoint Types:
-# MAGIC
-# MAGIC - **Provisioned Throughput**: Reserved capacity, predictable performance
-# MAGIC - **Serverless**: Auto-scaling, pay-per-request
-# MAGIC
-# MAGIC ### For GenAI Agents:
-# MAGIC
-# MAGIC - Use **Serverless** for development and variable traffic
-# MAGIC - Use **Provisioned** for production with consistent load
-# MAGIC - Enable **Inference Tables** for observability
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## 2. Deploy Agent Using agents.deploy()
-# MAGIC
-# MAGIC The `agents.deploy()` API simplifies deployment by:
-# MAGIC - Automatically configuring the endpoint
-# MAGIC - Setting up inference tables
-# MAGIC - Managing environment variables
-# MAGIC - Handling model versioning
-
-# COMMAND ----------
-
-from databricks import agents
-from mlflow import MlflowClient
-
-# Get model details
 model_name = f"{cfg.catalog}.{cfg.schema}.arxiv_agent"
-client = MlflowClient()
-model_version = client.get_model_version_by_alias(model_name, "latest-model").version
-endpoint_name = f"arxiv-agent-{env}"
+endpoint_name = "arxiv-agent-endpoint-course"
+secret_scope = "arxiv-agent-scope"
 
-# Get experiment ID for tracing
-experiment = client.get_experiment_by_name(cfg.experiment_name)
+model_version = MlflowClient().get_model_version_by_alias(
+    model_name, "latest-model").version
 
-logger.info(f"Deploying agent:")
-logger.info(f"  Model: {model_name}")
-logger.info(f"  Version: {model_version}")
-logger.info(f"  Endpoint: {endpoint_name}")
+workspace = WorkspaceClient()
+experiment = MlflowClient().get_experiment_by_name(cfg.experiment_name)
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### Deploy the Agent
+# MAGIC ## 1. Deploy Agent
+# MAGIC
+# MAGIC The `agents.deploy()` API handles:
+# MAGIC - Endpoint creation and configuration
+# MAGIC - Inference tables for monitoring
+# MAGIC - Environment variables and secrets
+# MAGIC - Model versioning
 
 # COMMAND ----------
 
-# Deploy agent to serving endpoint
+git_sha = "local"
+
 agents.deploy(
     model_name=model_name,
     model_version=int(model_version),
     endpoint_name=endpoint_name,
+    usage_policy_id=cfg.usage_policy_id,
     scale_to_zero=True,
     workload_size="Small",
+    deploy_feedback_model=False,
     environment_vars={
+        "GIT_SHA": git_sha,
+        "MODEL_VERSION": model_version,
         "MODEL_SERVING_ENDPOINT_NAME": endpoint_name,
         "MLFLOW_EXPERIMENT_ID": experiment.experiment_id,
+        "LAKEBASE_SP_CLIENT_ID": f"{{{{secrets/{secret_scope}/client_id}}}}",
+        "LAKEBASE_SP_CLIENT_SECRET": f"{{{{secrets/{secret_scope}/client_secret}}}}",
+        "LAKEBASE_SP_HOST": workspace.config.host,
     },
 )
 
-logger.info(f"✓ Deployment complete!")
-logger.info(f"  Endpoint: {endpoint_name}")
-logger.info(f"  Model: {model_name}@{model_version}")
-
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 3. Test the Deployed Endpoint
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ### Wait for Endpoint to be Ready
+# MAGIC ## 2. Test the Deployed Endpoint
 # MAGIC
-# MAGIC The deployment may take 5-10 minutes. You can check the endpoint status in the UI or wait here.
+# MAGIC Wait for deployment to complete (5-10 minutes), then test the endpoint.
 
 # COMMAND ----------
 
-# Wait for endpoint to be ready (optional - can also check in UI)
-# w.serving_endpoints.wait_get_serving_endpoint_not_updating(endpoint_name)
-# logger.info(f"✓ Endpoint is ready!")
+import random
+from datetime import datetime
+from openai import OpenAI
 
-# MAGIC %md
-# MAGIC ### Send Test Request
+host = workspace.config.host
+token = workspace.tokens.create(lifetime_seconds=2000).token_value
 
-# COMMAND ----------
-
-# Test request using the agent's expected format
-test_request = {
-    "input": [
-        {
-            "role": "user",
-            "content": "What are recent papers about vision transformers?"
-        }
-    ]
-}
-
-logger.info("Sending request to endpoint...")
-
-# Use the workspace client's API client for authenticated requests
-api_client = w.api_client
-endpoint_url = f"/api/2.0/serving-endpoints/{endpoint_name}/invocations"
-
-response = api_client.do(
-    method="POST",
-    path=endpoint_url,
-    body=test_request
+client = OpenAI(
+    api_key=token,
+    base_url=f"{host}/serving-endpoints",
 )
 
-logger.info("\n✓ Response received:")
-if "output" in response:
-    logger.info(f"\n  Content:")
-    for item in response["output"]:
-        if isinstance(item, dict) and "content" in item:
-            logger.info(f"  {item['content']}")
-        else:
-            logger.info(f"  {item}")
+timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+session_id = f"s-{timestamp}-{random.randint(100000, 999999)}"
+request_id = f"req-{timestamp}-{random.randint(100000, 999999)}"
 
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ### Test Streaming Response
-
-# COMMAND ----------
-
-logger.info("Testing streaming response...")
-
-# Streaming request
-stream_request = {
-    "input": [
-        {
-            "role": "user",
-            "content": "Summarize recent work on large language models"
-        }
+response = client.responses.create(
+    model=endpoint_name,
+    input=[
+        {"role": "user", "content": "What are recent papers about LLMs and reasoning?"}
     ],
-    "stream": True
-}
-
-# For streaming, we need to use requests with proper authentication
-import os
-if "DATABRICKS_RUNTIME_VERSION" in os.environ:
-    # On Databricks, use notebook context
-    from databricks.sdk.runtime import dbutils
-    token = dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiToken().get()
-else:
-    # Local execution
-    token = w.config.token
-
-headers = {
-    "Authorization": f"Bearer {token}",
-    "Content-Type": "application/json"
-}
-
-response = requests.post(
-    f"{w.config.host}/api/2.0/serving-endpoints/{endpoint_name}/invocations",
-    headers=headers,
-    json=stream_request,
-    stream=True
+    extra_body={"custom_inputs": {
+        "session_id": session_id,
+        "request_id": request_id,
+    }}
 )
 
-logger.info("\n✓ Streaming response:")
-for line in response.iter_lines():
-    if line:
-        try:
-            data = json.loads(line.decode('utf-8').replace('data: ', ''))
-            if isinstance(data, dict) and 'item' in data:
-                item = data['item']
-                if isinstance(item, dict) and 'content' in item:
-                    print(item['content'], end="", flush=True)
-        except:
-            pass
-
-logger.info("\n\n✓ Streaming complete")
-
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## 4. Monitor Endpoint Performance
-
-# COMMAND ----------
-
-# Get endpoint metrics
-endpoint_details = w.serving_endpoints.get(endpoint_name)
-
-logger.info("Endpoint Details:")
-logger.info(f"  Name: {endpoint_details.name}")
-logger.info(f"  State: {endpoint_details.state.ready}")
-logger.info(f"  Creator: {endpoint_details.creator}")
-logger.info(f"  Creation Time: {endpoint_details.creation_timestamp}")
-
-if endpoint_details.config.served_entities:
-    for entity in endpoint_details.config.served_entities:
-        logger.info(f"\nServed Entity:")
-        logger.info(f"  Model: {entity.entity_name}")
-        logger.info(f"  Version: {entity.entity_version}")
-        logger.info(f"  Workload Size: {entity.workload_size}")
-        logger.info(f"  Scale to Zero: {entity.scale_to_zero_enabled}")
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## 5. Query Inference Tables
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ### Check Inference Table
-
-# COMMAND ----------
-
-# Inference table name
-inference_table = f"{cfg.catalog}.{cfg.schema}.arxiv_agent_{env}_payload"
-
-logger.info(f"Inference table: {inference_table}")
-
-# Query recent requests
-recent_requests = spark.sql(f"""
-    SELECT 
-        request_id,
-        timestamp,
-        status_code,
-        request,
-        response
-    FROM {inference_table}
-    ORDER BY timestamp DESC
-    LIMIT 10
-""")
-
-display(recent_requests)
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ### Analyze Request Patterns
-
-# COMMAND ----------
-
-# Analyze request volume over time
-request_stats = spark.sql(f"""
-    SELECT 
-        DATE_TRUNC('hour', timestamp) as hour,
-        COUNT(*) as request_count,
-        AVG(execution_duration_ms) as avg_latency_ms,
-        MAX(execution_duration_ms) as max_latency_ms
-    FROM {inference_table}
-    WHERE timestamp >= CURRENT_TIMESTAMP() - INTERVAL 24 HOURS
-    GROUP BY hour
-    ORDER BY hour DESC
-""")
-
-display(request_stats)
+print(response)
 
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC ## Summary
 # MAGIC
-# MAGIC In this notebook, we learned:
+# MAGIC In this notebook, we:
 # MAGIC
-# MAGIC 1. ✅ How to configure Model Serving endpoints
-# MAGIC 2. ✅ How to deploy models from Unity Catalog
-# MAGIC 3. ✅ How to enable inference tables for monitoring
-# MAGIC 4. ✅ How to test deployed endpoints
-# MAGIC 5. ✅ How to use the `arxiv_curator.serving` module
-# MAGIC 6. ✅ How to query and analyze inference data
+# MAGIC 1. ✅ Deployed an agent using `agents.deploy()`
+# MAGIC 2. ✅ Configured environment variables and secrets
+# MAGIC 3. ✅ Tested the endpoint with OpenAI-compatible client
+# MAGIC 4. ✅ Used session and request IDs for tracing
 # MAGIC
 # MAGIC **Next Steps:**
-# MAGIC - Add guardrails and safety checks
+# MAGIC - Monitor traces and performance
 # MAGIC - Set up evaluation pipelines
-# MAGIC - Configure monitoring and alerts
-# MAGIC - Implement A/B testing
+# MAGIC - Configure alerts
