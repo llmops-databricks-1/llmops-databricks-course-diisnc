@@ -1,6 +1,5 @@
 """Configuration management for Arxiv Curator."""
 
-import os
 from pathlib import Path
 
 import yaml
@@ -11,6 +10,7 @@ from pyspark.sql import SparkSession
 
 class ProjectConfig(BaseModel):
     """Project configuration model."""
+
     usage_policy_id: str | None = Field(..., description="Usage policy id")
     catalog: str = Field(..., description="Unity Catalog name")
     db_schema: str = Field(..., description="Schema name", alias="schema")
@@ -24,9 +24,9 @@ class ProjectConfig(BaseModel):
     experiment_name: str = Field(None, description="Experiment name")
     system_prompt: str = Field(
         default="You are a helpful AI assistant that helps users find and understand research papers.",
-        description="System prompt for the agent"
+        description="System prompt for the agent",
     )
-    
+
     model_config = {"populate_by_name": True}
 
     @classmethod
@@ -48,7 +48,7 @@ class ProjectConfig(BaseModel):
 
         if env not in config_data:
             raise ValueError(f"Environment '{env}' not found in config file")
-        
+
         env_config = config_data[env]
         if "system_prompt" in config_data:
             env_config["system_prompt"] = config_data["system_prompt"]
@@ -59,7 +59,7 @@ class ProjectConfig(BaseModel):
     def schema(self) -> str:
         """Alias for db_schema for backward compatibility."""
         return self.db_schema
-    
+
     @property
     def full_schema_name(self) -> str:
         """Get fully qualified schema name."""
@@ -97,11 +97,11 @@ class ChunkingConfig(BaseModel):
 
 def load_config(config_path: str = "project_config.yml", env: str = "dev") -> ProjectConfig:
     """Load project configuration.
-    
+
     Args:
         config_path: Path to configuration file
         env: Environment name
-        
+
     Returns:
         ProjectConfig instance
     """
@@ -115,7 +115,7 @@ def load_config(config_path: str = "project_config.yml", env: str = "dev") -> Pr
                 config_path = str(candidate)
                 break
             current = current.parent
-    
+
     return ProjectConfig.from_yaml(config_path, env)
 
 
