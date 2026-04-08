@@ -237,6 +237,8 @@ class DataProcessor:
 
         return files
 
+    # this is a good practice and should be mantained besided the logic "if ID not in
+    # table, add to table". Useful when we have multiple documents
     def _get_range_start(self) -> datetime.datetime:
         """
         Get start timestamp for incremental fetch.
@@ -407,6 +409,8 @@ class DataProcessor:
         return records
 
     # ---------------------------------- Parse Content -----------------------------------
+    # this function should be optimized bc ai_parse_document() can be paralelized, and I'm
+    # doing it doc by doc.
     def parse_pdfs_with_ai(self) -> None:
         """
         Parse PDFs using ai_parse_document and store in ai_parsed_docs table.

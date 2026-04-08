@@ -28,6 +28,7 @@ scope_guideline = Guidelines(
     model="databricks:/databricks-gpt-oss-120b",
 )
 
+# this is an example of a bad guideline (subjective)
 hook_in_post_guideline = Guidelines(
     name="hook_in_post",
     guidelines=[

@@ -198,6 +198,9 @@ display(results)  # noqa: F821
 # COMMAND ----------
 
 # Create a Judge with numeric scoring
+# Judge vs Guideline: judge makes it possible to provide comprehensive instructions and
+# define detailed evaluation e.g. scores (guidelines are just pass/fail). Also, it's
+# possible to pass i/o variables, and judges can be aligned with human feedback (SIMBA).
 quality_judge = make_judge(
     name="response_quality",
     instructions=(
