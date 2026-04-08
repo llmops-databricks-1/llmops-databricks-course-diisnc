@@ -44,4 +44,5 @@ jobs:
         run: |
             databricks bundle deploy \
               --target dev \
-              --var="git_sha=${{ github.sha }}"
+              --var="git_sha=${{ github.sha }}" \
+              --var="branch=${{ github.ref_name }}"
