@@ -65,9 +65,7 @@ class ValuationAgent(ResponsesAgent):
         # directly bc it comes also with authentication for all accesses. The agent needs
         # to have access to that endpoint. If we don't do this, we'd have to take care of
         # the auth ourselves in the agent logic (like we did in the course for lakebase)
-        self.model_serving_client = (
-            self.workspace_client.serving_endpoints.get_open_ai_client()
-        )
+        self.model_serving_client = self.workspace_client.serving_endpoints.get_open_ai_client()
 
         # Initialize Lakebase memory if configured
         # self.memory: LakebaseMemory | None = None
@@ -119,9 +117,7 @@ class ValuationAgent(ResponsesAgent):
         messages: list[dict[str, Any]],
     ) -> Generator[dict[str, Any], None, None]:
         with warnings.catch_warnings():
-            warnings.filterwarnings(
-                "ignore", message="PydanticSerializationUnexpectedValue"
-            )
+            warnings.filterwarnings("ignore", message="PydanticSerializationUnexpectedValue")
             stream = self.model_serving_client.chat.completions.create(
                 model=self.llm_endpoint,
                 messages=to_chat_completions_input(messages),
@@ -155,13 +151,9 @@ class ValuationAgent(ResponsesAgent):
         args = json.loads(tool_call["arguments"])
         result = str(self.execute_tool(tool_name=tool_call["name"], args=args))
 
-        tool_call_output = self.create_function_call_output_item(
-            tool_call["call_id"], result
-        )
+        tool_call_output = self.create_function_call_output_item(tool_call["call_id"], result)
         messages.append(tool_call_output)
-        return ResponsesAgentStreamEvent(
-            type="response.output_item.done", item=tool_call_output
-        )
+        return ResponsesAgentStreamEvent(type="response.output_item.done", item=tool_call_output)
 
     # load_memory is just calling load_messages and would not need a dedicated function,
     # but it's here for trace purposes
@@ -257,9 +249,7 @@ class ValuationAgent(ResponsesAgent):
         mlflow.update_current_trace(
             tags={
                 "git_sha": os.getenv("GIT_SHA", "local"),
-                "model_serving_endpoint_name": os.getenv(
-                    "MODEL_SERVING_ENDPOINT_NAME", "local"
-                ),
+                "model_serving_endpoint_name": os.getenv("MODEL_SERVING_ENDPOINT_NAME", "local"),
                 "model_version": os.getenv("MODEL_VERSION", "local"),
             },
             metadata=({"mlflow.trace.session": session_id} if session_id else {}),
@@ -339,12 +329,8 @@ def log_register_agent(
     resources = [
         DatabricksServingEndpoint(endpoint_name=cfg.llm_endpoint),
         DatabricksGenieSpace(genie_space_id=cfg.genie_space_id),
-        DatabricksVectorSearchIndex(
-            index_name=f"{cfg.catalog}.{cfg.schema}.valuation_index"
-        ),
-        DatabricksTable(
-            table_name=f"{cfg.catalog}.{cfg.schema}.customs_valuation_metadata"
-        ),
+        DatabricksVectorSearchIndex(index_name=f"{cfg.catalog}.{cfg.schema}.valuation_index"),
+        DatabricksTable(table_name=f"{cfg.catalog}.{cfg.schema}.customs_valuation_metadata"),
         DatabricksSQLWarehouse(warehouse_id=cfg.warehouse_id),
         DatabricksServingEndpoint(endpoint_name="databricks-bge-large-en"),
     ]
@@ -367,7 +353,7 @@ def log_register_agent(
         ]
     }
 
-    mlflow.set_experiment(cfg.experiment_path)
+    mlflow.set_experiment(cfg.experiment_name)
     ts = datetime.now().strftime("%Y-%m-%d")
 
     with mlflow.start_run(

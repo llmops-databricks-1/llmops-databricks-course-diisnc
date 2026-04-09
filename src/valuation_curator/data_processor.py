@@ -131,9 +131,7 @@ class DataProcessor:
     @staticmethod
     def _download_drive_file(file_id: str, destination: str, api_key: str) -> None:
         """Download a single file from Google Drive to destination path."""
-        file_url = (
-            f"https://www.googleapis.com/drive/v3/files/{file_id}?alt=media&key={api_key}"
-        )
+        file_url = f"https://www.googleapis.com/drive/v3/files/{file_id}?alt=media&key={api_key}"
         tmp_path = f"{destination}.tmp"
         with (
             request.urlopen(file_url, timeout=120) as response,
@@ -193,9 +191,7 @@ class DataProcessor:
             if page_token is not None:
                 params["pageToken"] = page_token
 
-            payload = self._drive_get_json(
-                "https://www.googleapis.com/drive/v3/files", params
-            )
+            payload = self._drive_get_json("https://www.googleapis.com/drive/v3/files", params)
             for folder in payload.get("files", []):
                 if folder["name"].startswith("case_"):
                     folders.append(folder)
@@ -226,9 +222,7 @@ class DataProcessor:
             if page_token is not None:
                 params["pageToken"] = page_token
 
-            payload = self._drive_get_json(
-                "https://www.googleapis.com/drive/v3/files", params
-            )
+            payload = self._drive_get_json("https://www.googleapis.com/drive/v3/files", params)
             files.extend(payload.get("files", []))
 
             page_token = payload.get("nextPageToken")
@@ -259,9 +253,9 @@ class DataProcessor:
             ).collect()
             max_processed = result[0][0]
             if max_processed is not None:
-                start = datetime.datetime.strptime(
-                    str(max_processed), "%Y%m%d%H%M"
-                ).replace(tzinfo=datetime.UTC)
+                start = datetime.datetime.strptime(str(max_processed), "%Y%m%d%H%M").replace(
+                    tzinfo=datetime.UTC
+                )
                 logger.info(
                     "Found existing customs_valuation_metadata table. "
                     f"Starting from: {start.isoformat()}"
@@ -321,9 +315,7 @@ class DataProcessor:
                 try:
                     self._download_drive_file(pdf_file["id"], local_path, api_key)
                 except Exception as error:
-                    logger.warning(
-                        f"Failed to download {filename} for {case_id}: {error}"
-                    )
+                    logger.warning(f"Failed to download {filename} for {case_id}: {error}")
                     continue
 
                 if filename.startswith("invoice_"):
@@ -348,9 +340,7 @@ class DataProcessor:
                     }
                 )
             else:
-                logger.warning(
-                    f"Skipping case {case_id}: missing invoice or declaration PDF."
-                )
+                logger.warning(f"Skipping case {case_id}: missing invoice or declaration PDF.")
 
         # Only process if we have records
         if len(records) == 0:
@@ -461,9 +451,7 @@ class DataProcessor:
             """
             )
 
-        logger.info(
-            f"Parsed PDFs for {len(current_case_paths)} cases into {self.parsed_table}"
-        )
+        logger.info(f"Parsed PDFs for {len(current_case_paths)} cases into {self.parsed_table}")
 
     # -------------------------------- Translation Logic ---------------------------------
     def translate_parsed_docs(self) -> None:
@@ -489,8 +477,7 @@ class DataProcessor:
             column_name, column_type = column_def
             if column_name.lower() not in existing_columns:
                 self.spark.sql(
-                    f"ALTER TABLE {self.parsed_table} "
-                    f"ADD COLUMN {column_name} {column_type}"
+                    f"ALTER TABLE {self.parsed_table} " f"ADD COLUMN {column_name} {column_type}"
                 )
 
         rows = self.spark.sql(
@@ -512,9 +499,7 @@ class DataProcessor:
         translated_rows = []
         for row in rows:
             translated_json, source_language, translation_applied = (
-                self._detect_and_translate_document(
-                    row["parsed_content"], endpoint_name, client
-                )
+                self._detect_and_translate_document(row["parsed_content"], endpoint_name, client)
             )
 
             translated_rows.append(
@@ -568,9 +553,7 @@ class DataProcessor:
             return None
 
         candidates = [text]
-        fenced_blocks = re.findall(
-            r"```(?:json)?\s*([\s\S]*?)\s*```", text, flags=re.IGNORECASE
-        )
+        fenced_blocks = re.findall(r"```(?:json)?\s*([\s\S]*?)\s*```", text, flags=re.IGNORECASE)
         candidates.extend(block.strip() for block in fenced_blocks if block.strip())
 
         object_match = re.search(r"\{[\s\S]*\}", text)
@@ -893,9 +876,7 @@ class DataProcessor:
             result["invoice_total"] = amount
             result["invoice_currency"] = currency
         elif filename.startswith("declaration_"):
-            result.update(
-                DataProcessor._extract_declaration_metadata(parsed_content_json)
-            )
+            result.update(DataProcessor._extract_declaration_metadata(parsed_content_json))
         elif filename.startswith("royalty_"):
             result["royalty_percentage"] = DataProcessor._extract_royalty_metadata(
                 parsed_content_json
@@ -976,8 +957,7 @@ class DataProcessor:
         Reads from ai_parsed_docs table and saves to chunks table.
         """
         logger.info(
-            f"Processing parsed documents from "
-            f"{self.parsed_table} for run {self.run_processed}"
+            f"Processing parsed documents from " f"{self.parsed_table} for run {self.run_processed}"
         )
 
         df = (
@@ -1048,28 +1028,26 @@ class DataProcessor:
             df.withColumn("case_id", extract_cases_id_udf(col("path")))
             .withColumn(
                 "structured_metadata",
-                extract_structured_metadata_udf(
-                    col("path"), col("parsed_content_translated")
-                ),
+                extract_structured_metadata_udf(col("path"), col("parsed_content_translated")),
             )
             .groupBy("case_id")
             .agg(
                 first(col("structured_metadata.invoice_total"), ignorenulls=True).alias(
                     "invoice_total"
                 ),
-                first(
-                    col("structured_metadata.invoice_currency"), ignorenulls=True
-                ).alias("invoice_currency"),
+                first(col("structured_metadata.invoice_currency"), ignorenulls=True).alias(
+                    "invoice_currency"
+                ),
                 first(
                     col("structured_metadata.declaration_invoice_total"),
                     ignorenulls=True,
                 ).alias("declaration_invoice_total"),
-                first(
-                    col("structured_metadata.declaration_tax_A"), ignorenulls=True
-                ).alias("declaration_tax_A"),
-                first(
-                    col("structured_metadata.declaration_tax_B"), ignorenulls=True
-                ).alias("declaration_tax_B"),
+                first(col("structured_metadata.declaration_tax_A"), ignorenulls=True).alias(
+                    "declaration_tax_A"
+                ),
+                first(col("structured_metadata.declaration_tax_B"), ignorenulls=True).alias(
+                    "declaration_tax_B"
+                ),
                 first(col("structured_metadata.declaration_VAT"), ignorenulls=True).alias(
                     "declaration_VAT"
                 ),
@@ -1077,16 +1055,16 @@ class DataProcessor:
                     col("structured_metadata.declaration_royalty"),
                     ignorenulls=True,
                 ).alias("declaration_royalty"),
-                first(
-                    col("structured_metadata.declaration_total"), ignorenulls=True
-                ).alias("declaration_total"),
+                first(col("structured_metadata.declaration_total"), ignorenulls=True).alias(
+                    "declaration_total"
+                ),
                 first(
                     col("structured_metadata.declaration_currency"),
                     ignorenulls=True,
                 ).alias("declaration_currency"),
-                first(
-                    col("structured_metadata.royalty_percentage"), ignorenulls=True
-                ).alias("royalty_percentage"),
+                first(col("structured_metadata.royalty_percentage"), ignorenulls=True).alias(
+                    "royalty_percentage"
+                ),
             )
         )
 
@@ -1129,9 +1107,7 @@ class DataProcessor:
 
         # Write to table
         chunks_table = f"{self.catalog}.{self.schema}.chunks_table"
-        chunks_df.write.option("mergeSchema", "true").mode("append").saveAsTable(
-            chunks_table
-        )
+        chunks_df.write.option("mergeSchema", "true").mode("append").saveAsTable(chunks_table)
         logger.info(f"Saved chunks to {chunks_table}")
 
         # Enable Change Data Feed: important since vector search index will be updated
