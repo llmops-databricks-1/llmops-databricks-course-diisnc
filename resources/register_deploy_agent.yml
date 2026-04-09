@@ -1,9 +1,9 @@
 resources:
   jobs:
     register_deploy_agent:
-      name: arxiv-agent-register-deploy-pipeline
+      name: valuation-agent-register-deploy-pipeline
       tags:
-        project_name: "arxiv-curator"
+        project_name: "valuation-curator"
         environment: ${bundle.target}
       environments:
         - environment_key: default

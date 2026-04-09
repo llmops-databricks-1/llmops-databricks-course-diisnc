@@ -1,9 +1,10 @@
 # Databricks notebook source
 import mlflow
-from arxiv_curator.agent import log_register_agent
-from arxiv_curator.config import ProjectConfig
-from arxiv_curator.evaluation import evaluate_agent
-from arxiv_curator.utils.common import get_widget
+
+from valuation_curator.agent import log_register_agent
+from valuation_curator.config import ProjectConfig
+from valuation_curator.evaluation import evaluate_agent
+from valuation_curator.utils.common import get_widget
 
 env = get_widget("env", "dev")
 git_sha = get_widget("git_sha", "local")
@@ -13,7 +14,7 @@ cfg = ProjectConfig.from_yaml(config_path="../../project_config.yml", env=env)
 
 mlflow.set_experiment(cfg.experiment_name)
 
-model_name = f"{cfg.catalog}.{cfg.schema}.arxiv_agent"
+model_name = f"{cfg.catalog}.{cfg.schema}.valuation_agent"
 
 # COMMAND ----------
 # Run evaluation
@@ -25,7 +26,7 @@ registered_model = log_register_agent(
     cfg=cfg,
     git_sha=git_sha,
     run_id=run_id,
-    agent_code_path="../../arxiv_agent.py",
+    agent_code_path="../../valuation_agent.py",
     model_name=model_name,
     evaluation_metrics=results.metrics,
 )

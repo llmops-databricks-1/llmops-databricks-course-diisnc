@@ -20,7 +20,7 @@ from databricks.sdk import WorkspaceClient
 from loguru import logger
 from mlflow import MlflowClient
 
-from arxiv_curator.config import ProjectConfig
+from valuation_curator.config import ProjectConfig
 
 # Setup MLflow tracking
 if "DATABRICKS_RUNTIME_VERSION" not in os.environ:
@@ -32,9 +32,9 @@ if "DATABRICKS_RUNTIME_VERSION" not in os.environ:
 
 cfg = ProjectConfig.from_yaml("../project_config.yml")
 
-model_name = f"{cfg.catalog}.{cfg.schema}.arxiv_agent"
-endpoint_name = "arxiv-agent-endpoint-dev-course"
-secret_scope = "arxiv-agent-scope"
+model_name = f"{cfg.catalog}.{cfg.schema}.valuation_agent"
+endpoint_name = "valuation-agent-endpoint-dev-course"
+secret_scope = "valuation-agent-scope"
 
 model_version = MlflowClient().get_model_version_by_alias(
     model_name, "latest-model").version

@@ -1,24 +1,25 @@
 # Databricks notebook source
-from arxiv_curator.config import ProjectConfig
 from databricks import agents
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.runtime import dbutils
 from loguru import logger
 from mlflow import MlflowClient
 
+from valuation_curator.config import ProjectConfig
+
 # COMMAND ----------
 
 # Get parameters (passed via base_parameters in job YAML)
 git_sha = dbutils.widgets.get("git_sha")
 env = dbutils.widgets.get("env")
-secret_scope = "arxiv-agent-scope"
+secret_scope = "valuation-agent-scope"
 
 # Load configuration
 cfg = ProjectConfig.from_yaml("../../project_config.yml", env=env)
 
 # Get model details
-model_name = f"{cfg.catalog}.{cfg.schema}.arxiv_agent"
-endpoint_name = f"arxiv-agent-endpoint-{env}-course"
+model_name = f"{cfg.catalog}.{cfg.schema}.valuation_agent"
+endpoint_name = f"valuation-agent-endpoint-{env}-course"
 
 client = MlflowClient()
 model_version = client.get_model_version_by_alias(model_name, "latest-model").version

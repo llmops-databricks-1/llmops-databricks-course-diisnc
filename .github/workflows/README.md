@@ -1,6 +1,6 @@
 # GitHub Actions Workflows
 
-This directory contains CI/CD workflows for the Arxiv Curator project.
+This directory contains CI/CD workflows for the Valuation Curator project.
 
 ## Workflows
 
@@ -112,6 +112,6 @@ Edit `.github/workflows/cd.yml` to:
 
 ### Job Trigger Fails
 
-1. Verify job name `arxiv-agent-register-deploy-pipeline` exists in Databricks
+1. Verify job name `valuation-agent-register-deploy-pipeline` exists in Databricks
 2. Check token has job run permissions
 3. Install `jq` if running locally: `sudo apt-get install jq`
