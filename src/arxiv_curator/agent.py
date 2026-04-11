@@ -16,9 +16,7 @@ from loguru import logger
 from mlflow import MlflowClient
 from mlflow.entities import SpanType
 from mlflow.models.resources import (
-    DatabricksGenieSpace,
     DatabricksServingEndpoint,
-    DatabricksSQLWarehouse,
     DatabricksTable,
     DatabricksVectorSearchIndex,
 )
@@ -68,7 +66,8 @@ class ArxivAgent(ResponsesAgent):
                 w=self.workspace_client,
                 url_list=[
                     f"{host}/api/2.0/mcp/vector-search/{catalog}/{schema}",
-                    f"{host}/api/2.0/mcp/genie/{genie_space_id}",
+                    # Commented out Genie space to avoid SQL Endpoint permission issues
+                    # f"{host}/api/2.0/mcp/genie/{genie_space_id}",
                 ],
             )
         )
@@ -269,10 +268,10 @@ def log_register_agent(
 
     resources = [
         DatabricksServingEndpoint(endpoint_name=cfg.llm_endpoint),
-        DatabricksGenieSpace(genie_space_id=cfg.genie_space_id),
+        # DatabricksGenieSpace(genie_space_id=cfg.genie_space_id),  # Commented out - Genie disabled
         DatabricksVectorSearchIndex(index_name=f"{cfg.catalog}.{cfg.schema}.arxiv_index"),
         DatabricksTable(table_name=f"{cfg.catalog}.{cfg.schema}.arxiv_papers"),
-        DatabricksSQLWarehouse(warehouse_id=cfg.warehouse_id),
+        # DatabricksSQLWarehouse(warehouse_id=cfg.warehouse_id),  # Commented out - not needed without Genie
         DatabricksServingEndpoint(endpoint_name="databricks-bge-large-en"),
     ]
 
