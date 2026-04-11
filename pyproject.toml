@@ -53,30 +53,21 @@ testpaths = ["tests"]
 pythonpath = ["."]
 
 [tool.ruff]
-line-length = 90
+line-length = 100
+target-version = "py312"
 
+[tool.ruff.lint]
 select = [
     "F",    # pyflakes rules
     "E",    # pycodestyle error rules
     "W",    # pycodestyle warning rules
-    "B",    # flake8-bugbear rules
     "I",    # isort rules
-    "UP",   # pyupgrade rules
-    "SIM",  # flake8-simplify rules
-    "ERA",  # eradicate rules
-    "C",    # pylint convention rules
-    "ANN"   # flake8-annotations rules
 ]
 
 ignore = [
-    "D107",   # Missing docstring in `__init__`
-    "D203",   # incorrect-blank-line-before-class
-    "D213",   # multi-line-summary-second-line
-    "C901",   # too complex
-    "ERA001", # commented out code
-    "ANN204",
-    "ANN102",
-    "ANN101"
+    "E402",   # Module level import not at top of file (needed for Databricks notebooks)
+    "E501",   # Line too long (handled by formatter)
+    "ANN",    # Type annotations (too strict for this project)
 ]
 
 [tool.ruff.format]
