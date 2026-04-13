@@ -1,0 +1,107 @@
+ValuationAgent Flow Explanation
+
+Overview
+This file summarizes the execution flow and design ideas in src/valuation_curator/agent.py.
+
+High-level responsibility
+ValuationAgent is an MLflow ResponsesAgent that:
+- receives a Responses-style request,
+- optionally loads memory context,
+- runs a loop where the LLM can call tools,
+- emits stream events,
+- and can also return a non-stream final response.
+
+Step-by-step flow
+1) Initialization (__init__)
+- Stores basic configuration (system prompt, LLM endpoint).
+- Creates a Databricks WorkspaceClient.
+- Creates an OpenAI-compatible serving client from Databricks serving endpoints.
+- Builds MCP tool instances (Vector Search + Genie URLs) and stores them in _tools_dict by name.
+
+2) Entry points
+- predict_stream(request): primary execution path for streaming.
+    - ResponsesAgentStreamEvent: represent one streamed step emitted while the agent is running
+- predict(request): convenience wrapper for non-stream callers.
+    - ResponsesAgentResponse: represent the non-streaming final response object
+
+3) predict_stream(request)
+- Reads custom_inputs (session_id, request_id).
+- Loads previous messages via load_memory(session_id) if session_id is present.
+  - Current implementation returns [] (memory integration not activated).
+- Converts request.input items to dicts.
+- Calls call_and_run_tools() and yields each event.
+
+4) call_and_run_tools(...)
+- Builds message list:
+  - starts with system message,
+  - appends previous_messages,
+  - appends current request_input.
+- Updates MLflow trace metadata/tags:
+  - git_sha,
+  - model_serving_endpoint_name,
+  - model_version,
+  - session metadata and request id.
+- Runs _run_tool_loop(messages) and returns produced events.
+
+5) Core loop: _run_tool_loop(messages, max_iter=10)
+- Repeats until assistant final output appears or max_iter reached.
+- On each iteration, checks the last message:
+  - If role == "assistant": stop (final answer exists). After the model is done using tools, it emits a normal assistant message (the final user-facing answer), so this breaks the loop.
+  - If type == "function_call": execute tool via handle_tool_call(...).
+  - Else: call LLM streaming via call_llm(messages), then aggregate chunks into message history + response events (needed for next iteration)
+        - call_llm streams chunks that are consumed by output_to_responses_items_stream which assembles/appends those into complete response items.
+- If the loop exhausts max_iter, emits a final safety message:
+  "Max iterations reached. Stopping."
+
+6) call_llm(messages)
+- Calls Databricks OpenAI-compatible chat.completions with:
+  - model endpoint,
+  - converted chat input,
+  - tool specs,
+  - stream=True.
+- Uses exponential backoff retry for openai.RateLimitError.
+- Yields chunks as dictionaries (streams raw chunks that are later assembled/appended into a response in _run_tool_loop->output_to_responses_items_stream)
+- Captures model/usage and x-request-id into an MLflow LLM span.
+
+7) handle_tool_call(tool_call, messages)
+- Parses tool_call["arguments"] from JSON.
+- Executes the named tool via execute_tool(...).
+- Wraps tool output with create_function_call_output_item(...).
+- Appends that item to messages.
+- Returns a ResponsesAgentStreamEvent(type="response.output_item.done", item=tool_call_output).
+
+8) execute_tool(tool_name, args)
+- Looks up tool in _tools_dict and calls its exec_fn(**args).
+- MLflow traced as a TOOL span.
+
+9) Output shaping
+- _extract_output_items(events): filters stream events to keep only "message" output items.
+- predict(request):
+  - consumes predict_stream into a list,
+  - extracts final message items,
+  - returns ResponsesAgentResponse(output=..., custom_outputs=...).
+
+----------------------------------- NOTES -----------------------------------
+
+Why both predict and predict_stream exist
+- predict_stream supports incremental event delivery (streaming UX + visibility into tool flow).
+- predict gives a single final object for clients that want a non-stream API.
+- Implementation stays DRY: predict just wraps predict_stream.
+
+ResponsesAgentStreamEvent vs ResponsesAgentResponse
+- ResponsesAgentStreamEvent:
+  - one incremental event during execution,
+  - includes event type + item payload,
+  - used for tool outputs, streamed model output, and guardrail/fallback output.
+- ResponsesAgentResponse:
+  - final non-stream response object,
+  - built after collecting/processing stream events,
+  - contains filtered output items and custom outputs.
+
+Mental model
+Request -> predict_stream -> call_and_run_tools -> _run_tool_loop
+Inside loop:
+- LLM step -> maybe function_call
+- tool execution -> function_call_output appended
+- LLM step again
+- stop on assistant final message or max_iter guard

@@ -1,4 +1,24 @@
 # Project Configuration for LLMOps Course
+# to be adapted to my case
+system_prompt: |
+  You are a customs valuation agent responsible for detecting anomalies in customs
+  declarations.
+
+  Your role is to:
+  1. Search for relevant customs valuation documents using the vector search tool based
+     on the user's topic
+  2. Query the Genie space for additional context and insights about the documents
+  3. Generate a report in a professional audit style that:
+      - Clearly identifies suspicious declarations and why they were flagged
+      - References supporting evidence (fields, values, and source documents)
+      - Recommends concrete next investigation actions
+
+  Always ground your report in actual document findings from the tools
+  available to you.
+
+  If conversation history is provided, use it to maintain continuity
+  with the user's previous requests — refer back to earlier topics,
+  refine previous suggestions, and avoid repeating yourself.
 
 # Development environment
 dev:
@@ -11,7 +31,8 @@ dev:
   vector_search_endpoint: llmops_course_vs_endpoint
   genie_space_id: "01f12d0e51151a0f99caa978a12e068a"
   usage_policy_id: 686c435d-90af-4c40-9ca4-442d4a3d8899
-  lakebase_project_id: valuation-agent-lakebase
+  lakebase_project_id: null  # valuation-agent-lakebase
+  experiment_name: /Shared/valuation-curator-course
 
 # Acceptance/Staging environment
 acc:
@@ -24,7 +45,8 @@ acc:
   vector_search_endpoint: llmops_course_vs_endpoint
   genie_space_id: "01f12d0e51151a0f99caa978a12e068a"
   usage_policy_id: 686c435d-90af-4c40-9ca4-442d4a3d8899
-  lakebase_project_id: valuation-agent-lakebase
+  lakebase_project_id: null  # valuation-agent-lakebase
+  experiment_name: /Shared/valuation-curator-course
 
 # Production environment
 prd:
@@ -37,7 +59,8 @@ prd:
   vector_search_endpoint: llmops_course_vs_endpoint
   genie_space_id: "01f12d0e51151a0f99caa978a12e068a"
   usage_policy_id: 686c435d-90af-4c40-9ca4-442d4a3d8899
-  lakebase_project_id: valuation-agent-lakebase
+  lakebase_project_id: null  # valuation-agent-lakebase
+  experiment_name: /Shared/valuation-curator-course
 
 # Model configuration
 model_config:

@@ -11,7 +11,7 @@ from pyspark.sql import SparkSession
 class ProjectConfig(BaseModel):
     """Project configuration model."""
 
-    usage_policy_id: str = Field(..., description="Usage policy id")
+    usage_policy_id: str | None = Field(..., description="Usage policy id")
     catalog: str = Field(..., description="Unity Catalog name")
     db_schema: str = Field(..., description="Schema name", alias="schema")
     volume: str = Field(..., description="Volume name")
@@ -19,10 +19,11 @@ class ProjectConfig(BaseModel):
     embedding_endpoint: str = Field(..., description="Embedding endpoint name")
     warehouse_id: str = Field(..., description="Warehouse ID")
     vector_search_endpoint: str = Field(..., description="Vector search endpoint name")
-    lakebase_project_id: str = Field(..., description="Lakebase project id")
+    lakebase_project_id: str | None = Field(None, description="Lakebase project id")
     genie_space_id: str | None = Field(
         None, description="Genie space ID for MCP integration"
     )
+    experiment_name: str = Field(None, description="Experiment name")
     system_prompt: str = Field(
         default=(
             "You are a helpful AI assistant that helps users find anomalies in "
@@ -55,7 +56,11 @@ class ProjectConfig(BaseModel):
         if env not in config_data:
             raise ValueError(f"Environment '{env}' not found in config file")
 
-        return cls(**config_data[env])
+        env_config = config_data[env]
+        if "system_prompt" in config_data:
+            env_config["system_prompt"] = config_data["system_prompt"]
+
+        return cls(**env_config)
 
     @property
     def schema(self) -> str:
