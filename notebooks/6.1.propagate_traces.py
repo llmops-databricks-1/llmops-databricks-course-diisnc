@@ -10,7 +10,7 @@ workspace = WorkspaceClient()
 host = workspace.config.host
 token = workspace.tokens.create(lifetime_seconds=2000).token_value
 
-endpoint_name = "arxiv-agent-endpoint"
+endpoint_name = "arxiv-agent-endpoint-dev-course"
 
 client = OpenAI(
     api_key=token,

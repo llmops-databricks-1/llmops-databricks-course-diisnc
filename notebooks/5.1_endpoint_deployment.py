@@ -33,7 +33,7 @@ if "DATABRICKS_RUNTIME_VERSION" not in os.environ:
 cfg = ProjectConfig.from_yaml("../project_config.yml")
 
 model_name = f"{cfg.catalog}.{cfg.schema}.arxiv_agent"
-endpoint_name = "arxiv-agent-endpoint-dev-course"
+endpoint_name = "arxiv-agent-dev"
 secret_scope = "arxiv-agent-scope"
 
 model_version = MlflowClient().get_model_version_by_alias(

@@ -29,7 +29,7 @@ spark = SparkSession.builder.getOrCreate()
 catalog = cfg.catalog
 schema = cfg.schema
 
-traces_table = f"{catalog}.{schema}.arxiv_agent_traces"
+traces_table = f"{catalog}.{schema}.trace_logs_2712314122562787"
 aggregated_view = f"{catalog}.{schema}.arxiv_traces_aggregated"
 
 # COMMAND ----------
@@ -51,7 +51,7 @@ new_traces_df = spark.sql(f"""
         ).content[0].text AS response_text
     FROM {traces_table} t
     WHERE tags['model_serving_endpoint_name']
-            = 'arxiv-agent-endpoint'
+            = 'arxiv-agent-endpoint-dev-course'
       AND (t.assessments IS NULL OR size(t.assessments) = 0)
 """)
 
@@ -163,30 +163,32 @@ spark.sql(f"""
         ) AS LONG) AS total_tokens_used,
         current_timestamp() AS processed_ts,
         CASE
-            WHEN element_at(
+            WHEN try_element_at(
                 filter(t.assessments, a -> a.name = 'word_count_check'),
                 1
-            ).string_value = 'true' THEN 1 ELSE 0
+            ).feedback.value = 'true' THEN 1 ELSE 0
         END AS word_count_check,
         CASE
-            WHEN element_at(
+            WHEN try_element_at(
                 filter(t.assessments, a -> a.name = 'polite_tone'),
                 1
-            ).string_value = 'Pass' THEN 1 ELSE 0
+            ).feedback.value = 'Pass' THEN 1 ELSE 0
         END AS polite_tone,
         CASE
-            WHEN element_at(
+            WHEN try_element_at(
                 filter(t.assessments, a -> a.name = 'hook_in_post'),
                 1
-            ).string_value = 'Pass' THEN 1 ELSE 0
+            ).feedback.value = 'Pass' THEN 1 ELSE 0
         END AS hook_in_post
     FROM {traces_table} t
     LATERAL VIEW explode(spans) AS s
     WHERE tags['model_serving_endpoint_name']
-            = 'arxiv-agent-endpoint'
+            = 'arxiv-agent-endpoint-dev-course'
     GROUP BY t.trace_id, t.request_time,
              t.execution_duration_ms, t.request_preview,
              t.response, t.assessments
 """)
 
 logger.info(f"View {aggregated_view} created")
+
+# COMMAND ----------
