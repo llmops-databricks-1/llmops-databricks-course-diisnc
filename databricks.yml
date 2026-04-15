@@ -51,6 +51,8 @@ targets:
     workspace:
       host: https://dbc-e160dad8-9af8.cloud.databricks.com/
       root_path: /Shared/.bundle/${bundle.target}/${bundle.name}
+    run_as:
+      service_principal_name: bb608501-da5b-4a51-8dc3-c1f1ca701700
     variables:
       schedule_pause_status: PAUSED
 
