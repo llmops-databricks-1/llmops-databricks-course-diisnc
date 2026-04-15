@@ -2,9 +2,6 @@ resources:
   jobs:
     data-pipeline:
       name: valuation-data-pipeline
-      permissions:
-        - service_principal_name: bb608501-da5b-4a51-8dc3-c1f1ca701700
-          level: CAN_MANAGE
       schedule:
         quartz_cron_expression: "0 0 6 * * ?"
         timezone_id: "Europe/Amsterdam"

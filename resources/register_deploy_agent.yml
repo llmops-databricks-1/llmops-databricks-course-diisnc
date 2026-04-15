@@ -2,9 +2,6 @@ resources:
   jobs:
     register_deploy_agent:
       name: valuation-agent-register-deploy-pipeline
-      permissions:
-        - service_principal_name: bb608501-da5b-4a51-8dc3-c1f1ca701700
-          level: CAN_MANAGE
       tags:
         project_name: "valuation-curator"
         environment: ${bundle.target}
