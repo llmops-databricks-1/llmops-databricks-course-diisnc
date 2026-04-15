@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        environment: [dev] # can add prd here later
+        environment: [dev, acc] # can add prd here later
     environment: ${{ matrix.environment }}
     permissions:
       contents: write # to push tag
