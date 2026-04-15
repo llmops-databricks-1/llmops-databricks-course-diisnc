@@ -2,6 +2,8 @@
 # MAGIC %md
 # MAGIC # Lecture 5.1: Agent Deployment & Testing
 # MAGIC
+# MAGIC Notebook to practice deploying and testing an endpoint.
+# MAGIC
 # MAGIC ## Topics Covered:
 # MAGIC - Deploying agents using `agents.deploy()`
 # MAGIC - Configuring environment variables and secrets
@@ -9,7 +11,8 @@
 # MAGIC - Using OpenAI-compatible client
 # MAGIC
 # MAGIC ## Prerequisites:
-# MAGIC - For local execution: `pip install mlflow[databricks]` to access Unity Catalog models
+# MAGIC - For local execution: `pip install mlflow[databricks]` to access Unity Catalog
+# MAGIC models
 
 # COMMAND ----------
 
@@ -20,11 +23,19 @@ from databricks.sdk import WorkspaceClient
 from loguru import logger
 from mlflow import MlflowClient
 
+from dotenv import load_dotenv
+
+import random
+from datetime import datetime
+from openai import OpenAI
+
 from valuation_curator.config import ProjectConfig
 
 # Setup MLflow tracking
+# if running locally (db runtime not available in env variables), we load_dotenv() which
+# has profile name (.env file)
+# if running in databricks, mlflow will use workspace context automatically
 if "DATABRICKS_RUNTIME_VERSION" not in os.environ:
-    from dotenv import load_dotenv
     load_dotenv()
     profile = os.environ.get("PROFILE", "DEFAULT")
     mlflow.set_tracking_uri(f"databricks://{profile}")
@@ -36,6 +47,7 @@ model_name = f"{cfg.catalog}.{cfg.schema}.valuation_agent"
 endpoint_name = "valuation-agent-endpoint-dev-course"
 secret_scope = "valuation-agent-scope"
 
+# using "latest-model" alias
 model_version = MlflowClient().get_model_version_by_alias(
     model_name, "latest-model").version
 
@@ -62,7 +74,7 @@ agents.deploy(
     model_version=int(model_version),
     endpoint_name=endpoint_name,
     usage_policy_id=cfg.usage_policy_id,
-    scale_to_zero=True,
+    scale_to_zero=True,  # avoid idle costs
     workload_size="Small",
     deploy_feedback_model=False,
     environment_vars={
@@ -70,9 +82,9 @@ agents.deploy(
         "MODEL_VERSION": model_version,
         "MODEL_SERVING_ENDPOINT_NAME": endpoint_name,
         "MLFLOW_EXPERIMENT_ID": experiment.experiment_id,
-        "LAKEBASE_SP_CLIENT_ID": f"{{secrets/{secret_scope}/client-id}}",
-        "LAKEBASE_SP_CLIENT_SECRET": f"{{secrets/{secret_scope}/client-secret}}",
-        "LAKEBASE_SP_HOST": WorkspaceClient().config.host,
+        # "LAKEBASE_SP_CLIENT_ID": f"{{secrets/{secret_scope}/client-id}}",
+        # "LAKEBASE_SP_CLIENT_SECRET": f"{{secrets/{secret_scope}/client-secret}}",
+        # "LAKEBASE_SP_HOST": WorkspaceClient().config.host,
     },
 )
 
@@ -84,14 +96,13 @@ agents.deploy(
 # MAGIC Wait for deployment to complete (5-10 minutes), then test the endpoint.
 
 # COMMAND ----------
-
-import random
-from datetime import datetime
-from openai import OpenAI
-
+# notebook purposes
 host = workspace.config.host
 token = workspace.tokens.create(lifetime_seconds=2000).token_value
 
+# creating OpenAI client since we're going to send a request to the endpoint
+# we can also use another request library to call the endpoint but the payload would be
+# different, so using OpenAI makes it the easier way
 client = OpenAI(
     api_key=token,
     base_url=f"{host}/serving-endpoints",
@@ -104,7 +115,7 @@ request_id = f"req-{timestamp}-{random.randint(100000, 999999)}"
 response = client.responses.create(
     model=endpoint_name,
     input=[
-        {"role": "user", "content": "What are recent papers about LLMs and reasoning?"}
+        {"role": "user", "content": "What documents do I have with 3.5% royalty?"}
     ],
     extra_body={"custom_inputs": {
         "session_id": session_id,

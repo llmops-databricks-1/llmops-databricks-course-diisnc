@@ -26,3 +26,5 @@ jobs:
       - name: Build wheel
         run: |
           uv build
+
+# can also add tests here

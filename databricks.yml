@@ -16,6 +16,7 @@ artifacts:
     build: uv build
     path: .
 
+# vars to keep traceability (git_sha, branch)
 variables:
   git_sha:
     description: git_sha
@@ -31,16 +32,19 @@ variables:
 include:
   - resources/*.yml
 
+# tell databricks to include these files when creating the resources
+# these files will be used in workflow
 sync:
   include:
     - eval_inputs.txt
     - project_config.yml
 
+# for this project, we use same workspace for diff environments
 targets:
   dev:
     workspace:
       host: https://dbc-e160dad8-9af8.cloud.databricks.com/
-      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}
+      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.target}/${bundle.name}
 
   acc:
     mode: production

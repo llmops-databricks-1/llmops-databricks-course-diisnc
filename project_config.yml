@@ -1,5 +1,4 @@
 # Project Configuration for LLMOps Course
-# to be adapted to my case
 system_prompt: |
   You are a customs valuation agent responsible for detecting anomalies in customs
   declarations.
@@ -20,6 +19,10 @@ system_prompt: |
   with the user's previous requests — refer back to earlier topics,
   refine previous suggestions, and avoid repeating yourself.
 
+# For the 3 environments, the idea would be that we used different catalogs and objects.
+# The objects have to be created separately for each environment.
+# For this use case, since we only have 1 workspace, we're using the same.
+
 # Development environment
 dev:
   catalog: customs
@@ -30,7 +33,7 @@ dev:
   warehouse_id: 3a45f195a77d6027
   vector_search_endpoint: llmops_course_vs_endpoint
   genie_space_id: "01f12d0e51151a0f99caa978a12e068a"
-  usage_policy_id: 686c435d-90af-4c40-9ca4-442d4a3d8899
+  usage_policy_id: d62bef91-8061-4678-842a-0618c52355b6
   lakebase_project_id: null  # valuation-agent-lakebase
   experiment_name: /Shared/valuation-curator-course
 
@@ -44,7 +47,7 @@ acc:
   warehouse_id: 3a45f195a77d6027
   vector_search_endpoint: llmops_course_vs_endpoint
   genie_space_id: "01f12d0e51151a0f99caa978a12e068a"
-  usage_policy_id: 686c435d-90af-4c40-9ca4-442d4a3d8899
+  usage_policy_id: d62bef91-8061-4678-842a-0618c52355b6
   lakebase_project_id: null  # valuation-agent-lakebase
   experiment_name: /Shared/valuation-curator-course
 
@@ -58,7 +61,7 @@ prd:
   warehouse_id: 3a45f195a77d6027
   vector_search_endpoint: llmops_course_vs_endpoint
   genie_space_id: "01f12d0e51151a0f99caa978a12e068a"
-  usage_policy_id: 686c435d-90af-4c40-9ca4-442d4a3d8899
+  usage_policy_id: d62bef91-8061-4678-842a-0618c52355b6
   lakebase_project_id: null  # valuation-agent-lakebase
   experiment_name: /Shared/valuation-curator-course
 
