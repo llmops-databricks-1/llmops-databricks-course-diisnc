@@ -348,7 +348,7 @@ def log_register_agent(
         "input": [
             {
                 "role": "user",
-                "content": "What are recent papers about LLMs and reasoning?",
+                "content": "In which documents do I have a 3.5% royalty?",
             }
         ]
     }
