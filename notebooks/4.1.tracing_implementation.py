@@ -459,7 +459,7 @@ logger.info(f"Failed traces: {len(failed_traces)}")
 
 # Filter by tag
 endpoint_traces = mlflow.search_traces(
-    filter_string="tags.model_serving_endpoint_name = 'arxiv-agent-endpoint'",
+    filter_string="tags.model_serving_endpoint_name = 'valuation-agent-endpoint'",
     max_results=5,
 )
 logger.info(f"Traces for specific endpoint: {len(endpoint_traces)}")

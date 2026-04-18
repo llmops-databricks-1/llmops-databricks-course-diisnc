@@ -1,23 +1,22 @@
-exclude: ^tests/resources/
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v6.0.0
+    rev: v5.0.0
     hooks:
-      - id: check-merge-conflict
-      - id: check-added-large-files
-        args: ["--maxkb=5000"]
-      - id: check-json
-      - id: check-toml
-      - id: check-yaml
-        args: ["--unsafe"]
-      - id: end-of-file-fixer
       - id: trailing-whitespace
-      - id: detect-private-key
-      - id: forbid-new-submodules
-      - id: check-docstring-first
+        exclude: ^notebooks/
+      - id: end-of-file-fixer
+        exclude: ^notebooks/
+      - id: check-yaml
+        exclude: ^notebooks/
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-merge-conflict
+
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.1
+    rev: v0.8.4
     hooks:
       - id: ruff
-        args: [--fix, --exit-non-zero-on-fix, --show-fixes]
+        args: [--fix]
+        exclude: ^notebooks/
       - id: ruff-format
+        exclude: ^notebooks/

@@ -11,6 +11,7 @@ from pydantic import BaseModel
 class ToolInfo(BaseModel):
     """Tool information for agent integration.
 
+
     Attributes:
         name: Tool name
         spec: JSON description of the tool (OpenAI Responses format)
@@ -25,9 +26,7 @@ class ToolInfo(BaseModel):
         arbitrary_types_allowed = True
 
 
-def create_managed_exec_fn(
-    server_url: str, tool_name: str, w: WorkspaceClient
-) -> Callable:
+def create_managed_exec_fn(server_url: str, tool_name: str, w: WorkspaceClient) -> Callable:
     """Create an execution function for an MCP tool.
 
     Args:
@@ -51,9 +50,11 @@ def create_managed_exec_fn(
 async def create_mcp_tools(w: WorkspaceClient, url_list: list[str]) -> list[ToolInfo]:
     """Create tools from MCP servers.
 
+
     Args:
         w: Databricks workspace client
         url_list: List of MCP server URLs
+
 
     Returns:
         List of ToolInfo objects

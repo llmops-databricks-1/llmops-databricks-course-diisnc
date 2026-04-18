@@ -7,18 +7,32 @@ resources:
         timezone_id: "Europe/Amsterdam"
         pause_status: ${var.schedule_pause_status}
       tags:
-        project_name: "valuation-curator"
+        project_name: "valuation-curator" # nice practice to track costs
+        environment: ${bundle.target}
       environments:
         - environment_key: default
-          spec:
+          spec: # env 4 databricks (decides python version and other pip dependencies)
             environment_version: "4"
             dependencies:
               - ../dist/*.whl
 
+      # 1st nb 1.3 and 2nd process_data: processing chunked data to vector database index
       tasks:
+        - task_key: valuation_data_ingestion
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/1.3_valuation_data_ingestion.py
+            base_parameters: # parameters used in the script
+              env: ${bundle.target} # captured from bundle.target
+              git_sha: "${var.git_sha}" # from variables in databricks.yml
+              run_id: "{{job.run_id}}" # available from the moment job is executed
+
         - task_key: preprocessing
+          depends_on: # dependency (previous step)
+            - task_key: valuation_data_ingestion
           environment_key: default
           notebook_task:
             notebook_path: /deployment_scripts/process_data.py
             base_parameters:
               env: ${bundle.target}
+              git_sha: "${var.git_sha}"

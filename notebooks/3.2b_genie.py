@@ -100,7 +100,7 @@ else:
 
 # COMMAND ----------
 
-# Configure the Genie space with arxiv_papers table (NEEDS UPDATE)
+# Configure the Genie space with arxiv_papers table ------ (NEEDS UPDATE) ------
 # Genie should be connected to structured data to generate SQL, not embeddings or
 # vector indexes.
 serialized_space = {

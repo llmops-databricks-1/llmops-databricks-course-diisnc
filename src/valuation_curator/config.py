@@ -20,9 +20,7 @@ class ProjectConfig(BaseModel):
     warehouse_id: str = Field(..., description="Warehouse ID")
     vector_search_endpoint: str = Field(..., description="Vector search endpoint name")
     lakebase_project_id: str | None = Field(None, description="Lakebase project id")
-    genie_space_id: str | None = Field(
-        None, description="Genie space ID for MCP integration"
-    )
+    genie_space_id: str | None = Field(None, description="Genie space ID for MCP integration")
     experiment_name: str = Field(None, description="Experiment name")
     system_prompt: str = Field(
         default=(
@@ -46,9 +44,7 @@ class ProjectConfig(BaseModel):
             ProjectConfig instance
         """
         if env not in ["prd", "acc", "dev"]:
-            raise ValueError(
-                f"Invalid environment: {env}. Expected 'prd', 'acc', or 'dev'"
-            )
+            raise ValueError(f"Invalid environment: {env}. Expected 'prd', 'acc', or 'dev'")
 
         with open(config_path) as f:
             config_data = yaml.safe_load(f)
@@ -102,14 +98,14 @@ class ChunkingConfig(BaseModel):
     separator: str = Field("\n\n", description="Separator for chunking")
 
 
-def load_config(
-    config_path: str = "project_config.yml", env: str = "dev"
-) -> ProjectConfig:
+def load_config(config_path: str = "project_config.yml", env: str = "dev") -> ProjectConfig:
     """Load project configuration.
+
 
     Args:
         config_path: Path to configuration file
         env: Environment name
+
 
     Returns:
         ProjectConfig instance

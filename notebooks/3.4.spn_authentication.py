@@ -110,7 +110,7 @@ with psycopg.connect(conn_string) as conn:
         GRANT USAGE ON SCHEMA public TO "{client_id}";
     """)
     conn.execute(f"""
-        GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE session_messages TO "{client_id}";
+        GRANT SELECT, INSERT, UPDATE ON TABLE session_messages TO "{client_id}";
     """)
     conn.execute(f"""
         GRANT USAGE, SELECT ON SEQUENCE session_messages_id_seq TO "{client_id}";

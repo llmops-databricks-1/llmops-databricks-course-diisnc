@@ -83,6 +83,9 @@ results = mlflow.genai.evaluate(
 # from mlflow.models.resources
 # databricks will create a service principle for me with permission for these objects and
 # the agent will be able to use these tools.
+# note: there's an arg that could be passed to resources: on_behalf_of_user. If None or 
+# False, the resources are accessed with the permission of the creator. If true, they're
+# accessed with caller permissions on the serving endpoint.
 resources = [
     DatabricksServingEndpoint(endpoint_name=cfg.llm_endpoint),
     DatabricksGenieSpace(genie_space_id=cfg.genie_space_id),
@@ -102,7 +105,8 @@ request_id = f"req-{timestamp}-{random.randint(100000, 999999)}"
 # signature
 test_request = {
     "input": [
-        {"role": "user", "content": "In which documents do I have a 3.5% royalty?"}
+        {"role": "user", 
+         "content": "In which documents do I have a 3.5% royalty?"}
     ],
     "custom_inputs": {
         "session_id": session_id,
@@ -126,11 +130,12 @@ run_id = "unset"
 
 ts = ts = datetime.now().strftime("%Y-%m-%d")
 with mlflow.start_run(
-    run_name=f"valuation-agent-{ts}", tags={"git_sha": git_sha, "run_id": run_id}
+    run_name=f"valuation-agent-{ts}",
+    tags={"git_sha": git_sha, "run_id": run_id}
 ) as run:
     model_info = mlflow.pyfunc.log_model(
         name="agent",
-        python_model="../valuation_agent.py",
+        python_model="../valuation_agent.py",  # to be overwritten with model_config
         resources=resources,
         input_example=test_request,
         model_config=model_config,
