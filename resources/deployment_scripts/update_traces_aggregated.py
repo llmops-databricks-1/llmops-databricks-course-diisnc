@@ -1,5 +1,6 @@
 # Databricks notebook source
-import os
+# This notebook evaluates unevaluated agent traces and creates an aggregated view
+# for monitoring agent performance (latency, token usage, quality scores).
 
 import mlflow
 import pandas as pd
@@ -14,8 +15,6 @@ from arxiv_curator.evaluation import (
 )
 from arxiv_curator.utils.common import get_widget, set_mlflow_tracking_uri
 
-os.environ["PROFILE"] = "dev"
-
 set_mlflow_tracking_uri()
 
 env = get_widget("env", "dev")
@@ -29,11 +28,17 @@ spark = SparkSession.builder.getOrCreate()
 catalog = cfg.catalog
 schema = cfg.schema
 
+# Source table: raw traces logged by the serving endpoint
 traces_table = f"{catalog}.{schema}.trace_logs_2712314122562787"
+# Target view: aggregated metrics + quality scores per trace
 aggregated_view = f"{catalog}.{schema}.arxiv_traces_aggregated"
 
 # COMMAND ----------
-# Get traces not yet evaluated
+# Get traces not yet evaluated:
+# - Filters to our serving endpoint only
+# - Excludes traces that already have assessments (i.e., already scored)
+# - Parses the JSON response to extract the agent's final text message
+#   (skipping tool-call outputs, keeping only type='message')
 
 new_traces_df = spark.sql(f"""
     SELECT
@@ -59,7 +64,9 @@ traces_pdf = new_traces_df.toPandas()
 logger.info(f"New traces to evaluate: {len(traces_pdf)}")
 
 # COMMAND ----------
-# Build eval input
+# Build eval input DataFrame in the format mlflow.genai.evaluate expects:
+# - inputs: dict with the user query
+# - outputs: the agent's response text
 
 eval_pdf = pd.DataFrame(
     {
@@ -70,7 +77,8 @@ eval_pdf = pd.DataFrame(
 )
 
 # COMMAND ----------
-# Run word_count_check on all traces and log feedback
+# Run word_count_check (a cheap heuristic scorer) on ALL traces
+# and attach the result back to each trace as MLflow feedback
 
 wc_result = mlflow.genai.evaluate(
     data=eval_pdf[["inputs", "outputs"]],
@@ -92,7 +100,8 @@ for trace_id, assessments in zip(
 logger.info(f"Logged word_count_check for {len(eval_pdf)} traces")
 
 # COMMAND ----------
-# Run LLM-judge scorers on a 10% sample and log feedback
+# Run LLM-judge scorers (polite_tone, hook_in_post) on a 10% sample only
+# to control cost — these use an LLM call per trace per scorer
 
 sample_size = max(1, int(len(eval_pdf) * 0.1))
 sampled_pdf = eval_pdf.sample(n=sample_size)
@@ -120,9 +129,34 @@ for trace_id, assessments in zip(
 logger.info(f"Logged polite_tone/hook_in_post for {len(sampled_pdf)} traces")
 
 # COMMAND ----------
-# Create view matching the aggregated table schema
-# NOTE: verify assessment field name with:
-#   SELECT assessments FROM {traces_table} LIMIT 1
+# Create/replace an aggregated SQL view — one clean row per trace for dashboarding.
+# It takes raw nested trace data, explodes spans to compute operational metrics,
+# reads back quality assessments, and flattens everything.
+#
+# The view does 4 things per trace:
+#
+# 1. Basic trace info:
+#    - trace_id, request_time, request_preview — straight from the table
+#    - response_text — parses JSON response to extract the agent's final message
+#    - latency_seconds — converts execution_duration_ms to seconds
+#
+# 2. Span-level metrics (why we need LATERAL VIEW explode + GROUP BY):
+#    - LATERAL VIEW explode(spans) flattens the spans array into rows
+#    - call_llm_exec_count — counts spans named 'call_llm'
+#    - tool_call_count — counts spans named 'execute_tool'
+#    - total_tokens_used — sums total_tokens from each call_llm span's output
+#    - GROUP BY collapses the exploded rows back to one row per trace
+#
+# 3. Assessment scores (reading back the feedback we logged earlier):
+#    - word_count_check — 1 if 'true', else 0
+#    - polite_tone — 1 if 'Pass', else 0
+#    - hook_in_post — 1 if 'Pass', else 0
+#    - Uses try_element_at (not element_at) so it returns NULL instead of
+#      erroring when the assessment doesn't exist (e.g., traces not in
+#      the 10% LLM-judge sample)
+#
+# 4. Metadata:
+#    - processed_ts — current_timestamp(), stamps when the view was queried
 
 spark.sql(f"""
     CREATE OR REPLACE VIEW {aggregated_view} AS

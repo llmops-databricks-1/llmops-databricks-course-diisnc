@@ -1,0 +1,695 @@
+{
+  "datasets": [
+    {
+      "name": "traces",
+      "displayName": "Arxiv Traces",
+      "queryLines": [
+        "SELECT * FROM llmops_dev.arxiv.arxiv_traces_aggregated"
+      ],
+      "columns": [
+        {
+          "displayName": "Request Date",
+          "description": "Date extracted from request_time for time-series grouping",
+          "expression": "DATE(request_time)"
+        },
+        {
+          "displayName": "Quality Score",
+          "description": "Average pass rate across all 3 quality checks (0-100)",
+          "expression": "ROUND((word_count_check + polite_tone + hook_in_post) / 3.0 * 100, 1)"
+        },
+        {
+          "displayName": "Request Hour",
+          "description": "Hour of day from request_time for hourly distribution",
+          "expression": "HOUR(request_time)"
+        }
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "a1802297",
+      "displayName": "Overview",
+      "layout": [
+        {
+          "widget": {
+            "name": "header",
+            "multilineTextboxSpec": {
+              "lines": [
+                "## 🔍 LLM Ops Monitor — Arxiv Agent"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 12,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "date_filter",
+            "queries": [
+              {
+                "name": "dashboards/01f1377c7e341240844c07aaecc254e2/datasets/01f1377e0ab8150aafe237775afbf9de_request_time",
+                "query": {
+                  "datasetName": "traces",
+                  "fields": [
+                    {
+                      "name": "request_time",
+                      "expression": "`request_time`"
+                    },
+                    {
+                      "name": "request_time_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Request Date Range",
+                "showTitle": true
+              },
+              "widgetType": "filter-date-range-picker",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "request_time",
+                    "queryName": "dashboards/01f1377c7e341240844c07aaecc254e2/datasets/01f1377e0ab8150aafe237775afbf9de_request_time"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 1,
+            "width": 12,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "total_traces",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "traces",
+                  "fields": [
+                    {
+                      "name": "count(trace_id)",
+                      "expression": "COUNT(`trace_id`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Total Traces",
+                "showTitle": true
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "count(trace_id)",
+                  "displayName": "Total Traces"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 3,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "total_tokens",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "traces",
+                  "fields": [
+                    {
+                      "name": "sum(total_tokens_used)",
+                      "expression": "SUM(`total_tokens_used`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Total Tokens Used",
+                "showTitle": true
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(total_tokens_used)",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "compact"
+                  },
+                  "displayName": "Total Tokens"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 2,
+            "width": 3,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "avg_latency",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "traces",
+                  "fields": [
+                    {
+                      "name": "avg(latency_seconds)",
+                      "expression": "AVG(`latency_seconds`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Avg Latency (s)",
+                "showTitle": true
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "avg(latency_seconds)",
+                  "format": {
+                    "type": "number-plain",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 2
+                    },
+                    "abbreviation": "none"
+                  },
+                  "displayName": "Avg Latency"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 2,
+            "width": 3,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "avg_tokens",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "traces",
+                  "fields": [
+                    {
+                      "name": "avg(total_tokens_used)",
+                      "expression": "AVG(`total_tokens_used`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Avg Tokens / Trace",
+                "showTitle": true
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "avg(total_tokens_used)",
+                  "format": {
+                    "type": "number-plain",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 0
+                    },
+                    "abbreviation": "compact"
+                  },
+                  "displayName": "Avg Tokens per Trace"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 9,
+            "y": 2,
+            "width": 3,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "tokens_over_time",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "traces",
+                  "fields": [
+                    {
+                      "name": "Request Date",
+                      "expression": "`Request Date`"
+                    },
+                    {
+                      "name": "sum(total_tokens_used)",
+                      "expression": "SUM(`total_tokens_used`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "title": "Token Usage Over Time",
+                "showTitle": true
+              },
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "Request Date",
+                  "displayName": "Request Date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "sum(total_tokens_used)",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "compact"
+                  },
+                  "displayName": "Total Tokens",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 5,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "latency_over_time",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "traces",
+                  "fields": [
+                    {
+                      "name": "Request Date",
+                      "expression": "`Request Date`"
+                    },
+                    {
+                      "name": "avg(latency_seconds)",
+                      "expression": "AVG(`latency_seconds`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "title": "Avg Latency Over Time (s)",
+                "showTitle": true
+              },
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "Request Date",
+                  "displayName": "Request Date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "avg(latency_seconds)",
+                  "format": {
+                    "type": "number-plain",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 2
+                    },
+                    "abbreviation": "none"
+                  },
+                  "displayName": "Avg Latency (s)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 5,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "quality_rates",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "traces",
+                  "fields": [
+                    {
+                      "name": "Request Date",
+                      "expression": "`Request Date`"
+                    },
+                    {
+                      "name": "avg(word_count_check)",
+                      "expression": "AVG(`word_count_check`)"
+                    },
+                    {
+                      "name": "avg(polite_tone)",
+                      "expression": "AVG(`polite_tone`)"
+                    },
+                    {
+                      "name": "avg(hook_in_post)",
+                      "expression": "AVG(`hook_in_post`)"
+                    }
+                  ],
+                  "cubeGroupingSets": {
+                    "sets": [
+                      {
+                        "fieldNames": [
+                          "Request Date"
+                        ]
+                      },
+                      {}
+                    ]
+                  },
+                  "disaggregated": false,
+                  "orders": [
+                    {
+                      "direction": "ASC",
+                      "expression": "`Request Date`"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "title": "Assessment Pass Rates",
+                "showTitle": true
+              },
+              "widgetType": "pivot",
+              "encodings": {
+                "rows": [
+                  {
+                    "fieldName": "Request Date",
+                    "displayTotal": false,
+                    "displayName": "Request Date"
+                  }
+                ],
+                "cell": {
+                  "type": "multi-cell",
+                  "fields": [
+                    {
+                      "fieldName": "avg(word_count_check)",
+                      "cellType": "text",
+                      "displayName": "Word Count Check"
+                    },
+                    {
+                      "fieldName": "avg(polite_tone)",
+                      "cellType": "text",
+                      "displayName": "Polite Tone"
+                    },
+                    {
+                      "fieldName": "avg(hook_in_post)",
+                      "cellType": "text",
+                      "displayName": "Hook in Post"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 12,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "call_distribution",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "traces",
+                  "fields": [
+                    {
+                      "name": "total_tokens_used",
+                      "expression": "`total_tokens_used`"
+                    },
+                    {
+                      "name": "call_llm_exec_count",
+                      "expression": "`call_llm_exec_count`"
+                    },
+                    {
+                      "name": "tool_call_count",
+                      "expression": "`tool_call_count`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "title": "LLM Calls vs Tool Calls per Trace",
+                "showTitle": true
+              },
+              "widgetType": "scatter",
+              "encodings": {
+                "x": {
+                  "fieldName": "call_llm_exec_count",
+                  "displayName": "LLM Call Count",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "y": {
+                  "fieldName": "tool_call_count",
+                  "displayName": "Tool Call Count",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "total_tokens_used",
+                  "displayName": "Total Tokens",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "size": {
+                  "fieldName": "total_tokens_used",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Total Tokens"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 12,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "trace_table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "traces",
+                  "fields": [
+                    {
+                      "name": "trace_id",
+                      "expression": "`trace_id`"
+                    },
+                    {
+                      "name": "request_time",
+                      "expression": "`request_time`"
+                    },
+                    {
+                      "name": "request_preview",
+                      "expression": "`request_preview`"
+                    },
+                    {
+                      "name": "latency_seconds",
+                      "expression": "`latency_seconds`"
+                    },
+                    {
+                      "name": "call_llm_exec_count",
+                      "expression": "`call_llm_exec_count`"
+                    },
+                    {
+                      "name": "tool_call_count",
+                      "expression": "`tool_call_count`"
+                    },
+                    {
+                      "name": "total_tokens_used",
+                      "expression": "`total_tokens_used`"
+                    },
+                    {
+                      "name": "word_count_check",
+                      "expression": "`word_count_check`"
+                    },
+                    {
+                      "name": "polite_tone",
+                      "expression": "`polite_tone`"
+                    },
+                    {
+                      "name": "hook_in_post",
+                      "expression": "`hook_in_post`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "Trace Log Details",
+                "showTitle": true
+              },
+              "rowsPerPage": 25,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "trace_id",
+                    "displayName": "Trace ID"
+                  },
+                  {
+                    "fieldName": "request_time",
+                    "displayName": "Request Time"
+                  },
+                  {
+                    "fieldName": "request_preview",
+                    "displayName": "Request Preview"
+                  },
+                  {
+                    "fieldName": "latency_seconds",
+                    "displayName": "Latency (s)"
+                  },
+                  {
+                    "fieldName": "call_llm_exec_count",
+                    "displayName": "LLM Calls"
+                  },
+                  {
+                    "fieldName": "tool_call_count",
+                    "displayName": "Tool Calls"
+                  },
+                  {
+                    "fieldName": "total_tokens_used",
+                    "displayName": "Total Tokens"
+                  },
+                  {
+                    "fieldName": "word_count_check",
+                    "displayName": "Word Check"
+                  },
+                  {
+                    "fieldName": "polite_tone",
+                    "displayName": "Polite Tone"
+                  },
+                  {
+                    "fieldName": "hook_in_post",
+                    "displayName": "Hook in Post"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 19,
+            "width": 12,
+            "height": 10
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1"
+    }
+  ],
+  "uiSettings": {
+    "theme": {
+      "visualizationColors": [
+        "#2563EB",
+        "#7C3AED",
+        "#059669",
+        "#DC2626",
+        "#D97706",
+        "#0891B2",
+        "#4F46E5",
+        "#BE185D"
+      ],
+      "widgetHeaderAlignment": "LEFT",
+      "fontFamily": "Verdana"
+    },
+    "applyModeEnabled": false
+  }
+}
