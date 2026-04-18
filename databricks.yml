@@ -20,13 +20,9 @@ variables:
   schedule_pause_status:
     description: schedule pause status
     default: PAUSED
-  warehouse_id:
-    description: SQL warehouse ID for dashboards
-    default: 1883724c3376103a
 
 include:
   - resources/*.yml
-  - resources/dashboard/*.yml
 
 sync:
   include:
@@ -35,13 +31,10 @@ sync:
 
 targets:
   dev:
-    default: true
     workspace:
       host: https://adb-971256932836835.15.azuredatabricks.net/
       root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.target}/${bundle.name}
-      profile: dev
-    variables:
-      schedule_pause_status: PAUSED
+
   acc:
     mode: production
     workspace:
@@ -56,4 +49,4 @@ targets:
       host: https://adb-971256932836835.15.azuredatabricks.net
       root_path: /Shared/.bundle/${bundle.target}/${bundle.name}
     variables:
-      schedule_pause_status: UNPAUSED
+      schedule_pause_status: PAUSED
