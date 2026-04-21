@@ -60,4 +60,4 @@ targets:
       host: https://dbc-b1b2f91a-d102.cloud.databricks.com/
       root_path: /Shared/.bundle/${bundle.target}/${bundle.name}
     variables:
-      schedule_pause_status: UNPAUSED
+      schedule_pause_status: PAUSED

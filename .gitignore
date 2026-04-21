@@ -140,7 +140,7 @@ Thumbs.db
 # Data files
 *.csv
 *.parquet
-*.json
+# *.json
 *.xml
 *.xlsx
 *.xls
