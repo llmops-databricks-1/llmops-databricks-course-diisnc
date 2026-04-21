@@ -410,8 +410,8 @@
                       "expression": "AVG(`word_count_check`)"
                     },
                     {
-                      "name": "avg(polite_tone)",
-                      "expression": "AVG(`polite_tone`)"
+                      "name": "avg(professional_audit_tone)",
+                      "expression": "AVG(`professional_audit_tone`)"
                     },
                     {
                       "name": "avg(hook_in_post)",
@@ -462,7 +462,7 @@
                       "displayName": "Word Count Check"
                     },
                     {
-                      "fieldName": "avg(polite_tone)",
+                      "fieldName": "avg(professional_audit_tone)",
                       "cellType": "text",
                       "displayName": "Polite Tone"
                     },
@@ -597,8 +597,8 @@
                       "expression": "`word_count_check`"
                     },
                     {
-                      "name": "polite_tone",
-                      "expression": "`polite_tone`"
+                      "name": "professional_audit_tone",
+                      "expression": "`professional_audit_tone`"
                     },
                     {
                       "name": "hook_in_post",
@@ -652,8 +652,8 @@
                     "displayName": "Word Check"
                   },
                   {
-                    "fieldName": "polite_tone",
-                    "displayName": "Polite Tone"
+                    "fieldName": "professional_audit_tone",
+                    "displayName": "Professional Audit Tone"
                   },
                   {
                     "fieldName": "hook_in_post",

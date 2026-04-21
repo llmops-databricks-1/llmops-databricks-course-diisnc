@@ -7,17 +7,19 @@ import pandas as pd
 from loguru import logger
 from pyspark.sql import SparkSession
 
-from valuation_curator.config import ProjectConfig
+from valuation_curator.config import ProjectConfig, get_env
 from valuation_curator.evaluation import (
     hook_in_post_guideline,
     professional_audit_tone_guideline,
     word_count_check,
 )
-from valuation_curator.utils.common import get_widget, set_mlflow_tracking_uri
+from valuation_curator.utils.common import set_mlflow_tracking_uri
 
 set_mlflow_tracking_uri()
 
-env = get_widget("env", "dev")
+spark = SparkSession.builder.getOrCreate()
+
+env = get_env(spark)
 cfg = ProjectConfig.from_yaml("../../project_config.yml", env=env)
 mlflow.set_experiment(cfg.experiment_name)
 
@@ -65,7 +67,7 @@ logger.info(f"New traces to evaluate: {len(traces_pdf)}")
 
 # COMMAND ----------
 # Build eval input DataFrame in the format mlflow.genai.evaluate expects:
-# - inputs: dict with the user query
+# - inputs: dict with the user query (looks like {query: "..."}) for each trace
 # - outputs: the agent's response text
 
 eval_pdf = pd.DataFrame(
@@ -100,7 +102,7 @@ for trace_id, assessments in zip(
 logger.info(f"Logged word_count_check for {len(eval_pdf)} traces")
 
 # COMMAND ----------
-# Run LLM-judge scorers (polite_tone, hook_in_post) on a 10% sample only
+# Run LLM-judge scorers (professional_audit_tone, hook_in_post) on a 10% sample only
 # to control cost — these use an LLM call per trace per scorer
 
 sample_size = max(1, int(len(eval_pdf) * 0.1))
@@ -157,6 +159,13 @@ logger.info(f"Logged professional_audit_tone/hook_in_post for {len(sampled_pdf)}
 #
 # 4. Metadata:
 #    - processed_ts — current_timestamp(), stamps when the view was queried
+
+
+# Note: will probably see the scorers as 0 in the first minutes. Reason: There's an
+# automatic job that syncs the experiment results with the traces table (trace_logs_...)
+# every 15 min, and this agg table depends on it.
+# Open experiments tab -> select experiment -> Traces -> hover over "Delta sync: Enabled"
+#   -> get table name (job has the name  "[<experiment id>] Trace Archive Job")
 
 spark.sql(f"""
     CREATE OR REPLACE VIEW {aggregated_view} AS

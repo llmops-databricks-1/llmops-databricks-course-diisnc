@@ -18,6 +18,7 @@ client = OpenAI(
 )
 
 # COMMAND ----------
+# helper notebook to send requests to the endpoint to generate traces
 queries = [
     "What are the royalty rates mentioned in the documents?",
     "Which suppliers are referenced across all documents?",
@@ -35,6 +36,9 @@ queries = [
 ]
 
 # COMMAND ----------
+# for each query
+# we send request one by one and we get agent response. In agent, we have mlflow traces
+# enabled, so every request generates a trace in our mlflow experiment.
 for i, query in enumerate(queries):
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     session_id = f"s-{timestamp}-{random.randint(100000, 999999)}"
