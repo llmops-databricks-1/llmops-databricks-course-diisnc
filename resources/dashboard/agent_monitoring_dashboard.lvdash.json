@@ -2,9 +2,9 @@
   "datasets": [
     {
       "name": "traces",
-      "displayName": "Arxiv Traces",
+      "displayName": "Valuation Traces",
       "queryLines": [
-        "SELECT * FROM llmops_dev.arxiv.arxiv_traces_aggregated"
+        "SELECT * FROM mlops_dev.dianasof.valuation_traces_aggregated"
       ],
       "columns": [
         {
@@ -15,7 +15,7 @@
         {
           "displayName": "Quality Score",
           "description": "Average pass rate across all 3 quality checks (0-100)",
-          "expression": "ROUND((word_count_check + polite_tone + hook_in_post) / 3.0 * 100, 1)"
+          "expression": "ROUND((word_count_check + professional_audit_tone + hook_in_post) / 3.0 * 100, 1)"
         },
         {
           "displayName": "Request Hour",
@@ -35,7 +35,7 @@
             "name": "header",
             "multilineTextboxSpec": {
               "lines": [
-                "## 🔍 LLM Ops Monitor — Arxiv Agent"
+                "## 🔍 LLM Ops Monitor — Valuation Agent"
               ]
             }
           },

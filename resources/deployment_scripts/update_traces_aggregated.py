@@ -7,13 +7,13 @@ import pandas as pd
 from loguru import logger
 from pyspark.sql import SparkSession
 
-from arxiv_curator.config import ProjectConfig
-from arxiv_curator.evaluation import (
+from valuation_curator.config import ProjectConfig
+from valuation_curator.evaluation import (
     hook_in_post_guideline,
-    polite_tone_guideline,
+    professional_audit_tone_guideline,
     word_count_check,
 )
-from arxiv_curator.utils.common import get_widget, set_mlflow_tracking_uri
+from valuation_curator.utils.common import get_widget, set_mlflow_tracking_uri
 
 set_mlflow_tracking_uri()
 
@@ -29,9 +29,9 @@ catalog = cfg.catalog
 schema = cfg.schema
 
 # Source table: raw traces logged by the serving endpoint
-traces_table = f"{catalog}.{schema}.trace_logs_2712314122562787"
+traces_table = f"{catalog}.{schema}.trace_logs_2733558024257384"
 # Target view: aggregated metrics + quality scores per trace
-aggregated_view = f"{catalog}.{schema}.arxiv_traces_aggregated"
+aggregated_view = f"{catalog}.{schema}.valuation_traces_aggregated"
 
 # COMMAND ----------
 # Get traces not yet evaluated:
@@ -56,7 +56,7 @@ new_traces_df = spark.sql(f"""
         ).content[0].text AS response_text
     FROM {traces_table} t
     WHERE tags['model_serving_endpoint_name']
-            = 'arxiv-agent-endpoint-dev-course'
+            = 'valuation-agent-endpoint-dev-course'
       AND (t.assessments IS NULL OR size(t.assessments) = 0)
 """)
 
@@ -109,7 +109,7 @@ logger.info(f"Sampled {len(sampled_pdf)} traces for LLM-judge evaluation")
 
 llm_result = mlflow.genai.evaluate(
     data=sampled_pdf[["inputs", "outputs"]],
-    scorers=[polite_tone_guideline, hook_in_post_guideline],
+    scorers=[professional_audit_tone_guideline, hook_in_post_guideline],
 )
 
 for trace_id, assessments in zip(
@@ -126,7 +126,7 @@ for trace_id, assessments in zip(
             value=val,
         )
 
-logger.info(f"Logged polite_tone/hook_in_post for {len(sampled_pdf)} traces")
+logger.info(f"Logged professional_audit_tone/hook_in_post for {len(sampled_pdf)} traces")
 
 # COMMAND ----------
 # Create/replace an aggregated SQL view — one clean row per trace for dashboarding.
@@ -149,7 +149,7 @@ logger.info(f"Logged polite_tone/hook_in_post for {len(sampled_pdf)} traces")
 #
 # 3. Assessment scores (reading back the feedback we logged earlier):
 #    - word_count_check — 1 if 'true', else 0
-#    - polite_tone — 1 if 'Pass', else 0
+#    - professional_audit_tone — 1 if 'Pass', else 0
 #    - hook_in_post — 1 if 'Pass', else 0
 #    - Uses try_element_at (not element_at) so it returns NULL instead of
 #      erroring when the assessment doesn't exist (e.g., traces not in
@@ -204,10 +204,10 @@ spark.sql(f"""
         END AS word_count_check,
         CASE
             WHEN try_element_at(
-                filter(t.assessments, a -> a.name = 'polite_tone'),
+                filter(t.assessments, a -> a.name = 'professional_audit_tone'),
                 1
             ).feedback.value = 'Pass' THEN 1 ELSE 0
-        END AS polite_tone,
+        END AS professional_audit_tone,
         CASE
             WHEN try_element_at(
                 filter(t.assessments, a -> a.name = 'hook_in_post'),
@@ -217,7 +217,7 @@ spark.sql(f"""
     FROM {traces_table} t
     LATERAL VIEW explode(spans) AS s
     WHERE tags['model_serving_endpoint_name']
-            = 'arxiv-agent-endpoint-dev-course'
+            = 'valuation-agent-endpoint-dev-course'
     GROUP BY t.trace_id, t.request_time,
              t.execution_duration_ms, t.request_preview,
              t.response, t.assessments

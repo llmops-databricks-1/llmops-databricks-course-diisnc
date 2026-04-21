@@ -10,7 +10,7 @@ workspace = WorkspaceClient()
 host = workspace.config.host
 token = workspace.tokens.create(lifetime_seconds=2000).token_value
 
-endpoint_name = "arxiv-agent-endpoint-dev-course"
+endpoint_name = "valuation-agent-endpoint-dev-course"
 
 client = OpenAI(
     api_key=token,
@@ -19,36 +19,19 @@ client = OpenAI(
 
 # COMMAND ----------
 queries = [
-    "What are the most common topics in recent LLM research?",
-    "Summarize trending themes in NLP papers.",
-    "What topics dominate reinforcement learning research?",
-    "List popular research areas in computer vision.",
-    "What are the main themes in AI safety papers?",
-    "Summarize key topics in transformer architecture research.",
-    "What subjects appear most in recent RAG papers?",
-    "List common themes in fine-tuning research.",
-    "What are popular topics in multi-agent systems?",
-    "Summarize trending areas in code generation research.",
-    "What are the main research directions in RLHF?",
-    "List frequent topics in knowledge distillation papers.",
-    "What themes dominate diffusion model research?",
-    "Summarize common topics in prompt engineering papers.",
-    "What are trending subjects in embedding model research?",
-    "List popular areas in federated learning papers.",
-    "What topics are most discussed in AI alignment?",
-    "Summarize key themes in synthetic data research.",
-    "What are common research directions in sparse models?",
-    "List trending topics in continual learning papers.",
-    "What subjects appear most in text-to-SQL research?",
-    "Summarize popular themes in vision-language models.",
-    "What are the main topics in reward modeling papers?",
-    "List common areas in neural architecture search.",
-    "What themes are trending in multilingual NLP?",
-    "Summarize key topics in graph neural network papers.",
-    "What are popular research directions in LLM efficiency?",
-    "List frequent themes in long-context model research.",
-    "What topics dominate agentic AI papers?",
-    "Summarize trending areas in inference optimization research.",
+    "What are the royalty rates mentioned in the documents?",
+    "Which suppliers are referenced across all documents?",
+    "List documents with royalty percentages above 5%.",
+    "In which documents do I have anomalies?",
+    "Give me an overview of possible anomalies.",
+    "How many documents are in Spanish?",
+    "Are there any invoices from supplier John Doe?",
+    "Which document has the lowest royalty rate?",
+    "What royalty rates are between 2% and 4%?",
+    "Find documents mentioning leather products.",
+    "Which suppliers have royalty rates over 10%?",
+    "Show documents ingested in the last month.",
+    "Find suppliers with documents in multiple languages.",
 ]
 
 # COMMAND ----------

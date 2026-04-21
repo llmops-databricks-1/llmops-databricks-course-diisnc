@@ -1,13 +1,13 @@
 resources:
   jobs:
     update-and-evaluate-traces:
-      name: arxiv-update-and-evaluate-traces
+      name: valuation-update-and-evaluate-traces
       schedule:
         quartz_cron_expression: "0 0 7 * * ?"
         timezone_id: "Europe/Amsterdam"
         pause_status: ${var.schedule_pause_status}
       tags:
-        project_name: "arxiv-curator"
+        project_name: "valuation-curator"
       environments:
         - environment_key: default
           spec:
