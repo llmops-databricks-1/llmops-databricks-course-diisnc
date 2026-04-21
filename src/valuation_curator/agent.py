@@ -16,6 +16,7 @@ from loguru import logger
 from mlflow import MlflowClient
 from mlflow.entities import SpanType
 from mlflow.models.resources import (
+    DatabricksFunction,
     DatabricksGenieSpace,
     DatabricksServingEndpoint,
     DatabricksSQLWarehouse,
@@ -331,6 +332,10 @@ def log_register_agent(
         DatabricksGenieSpace(genie_space_id=cfg.genie_space_id),
         DatabricksVectorSearchIndex(index_name=f"{cfg.catalog}.{cfg.schema}.valuation_index"),
         DatabricksTable(table_name=f"{cfg.catalog}.{cfg.schema}.customs_valuation_metadata"),
+        DatabricksTable(table_name=f"{cfg.catalog}.{cfg.schema}.chunks_table"),
+        # UC function tools need explicit resource declarations so the deployed
+        # agent's service principal gets EXECUTE permission on them
+        DatabricksFunction(function_name=f"{cfg.catalog}.{cfg.schema}.detect_anomalies"),
         DatabricksSQLWarehouse(warehouse_id=cfg.warehouse_id),
         DatabricksServingEndpoint(endpoint_name="databricks-bge-large-en"),
     ]
