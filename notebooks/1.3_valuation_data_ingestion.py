@@ -95,12 +95,12 @@ TABLE_NAME = "customs_valuation_metadata"
 
 # Create a volume for storing PDFs - one time setup
 # Step 1: Create the catalog
-spark.sql(f"CREATE CATALOG IF NOT EXISTS {CATALOG}")
-logger.info(f"Catalog '{CATALOG}' ready")
+# spark.sql(f"CREATE CATALOG IF NOT EXISTS {CATALOG}")
+# logger.info(f"Catalog '{CATALOG}' ready")
 
 # Step 2: Create the schema within the catalog
-spark.sql(f"CREATE SCHEMA IF NOT EXISTS {CATALOG}.{SCHEMA}")
-logger.info(f"Schema '{CATALOG}.{SCHEMA}' ready")
+# spark.sql(f"CREATE SCHEMA IF NOT EXISTS {CATALOG}.{SCHEMA}")
+# logger.info(f"Schema '{CATALOG}.{SCHEMA}' ready")
 
 # Step 3: Create the volume
 spark.sql(f"CREATE VOLUME IF NOT EXISTS {CATALOG}.{SCHEMA}.{VOLUME}")

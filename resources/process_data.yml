@@ -32,7 +32,7 @@ resources:
             - task_key: valuation_data_ingestion
           environment_key: default
           notebook_task:
-            notebook_path: /deployment_scripts/process_data.py
+            notebook_path: deployment_scripts/process_data.py
             base_parameters:
               env: ${bundle.target}
               git_sha: "${var.git_sha}"

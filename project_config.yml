@@ -25,43 +25,43 @@ system_prompt: |
 
 # Development environment
 dev:
-  catalog: customs
-  schema: customs_valuation
+  catalog: mlops_dev
+  schema: dianasof
   volume: customs_valuation_files
   llm_endpoint: databricks-llama-4-maverick
   embedding_endpoint: databricks-gte-large-en
-  warehouse_id: 3a45f195a77d6027
-  vector_search_endpoint: llmops_course_vs_endpoint
-  genie_space_id: "01f12d0e51151a0f99caa978a12e068a"
-  usage_policy_id: d62bef91-8061-4678-842a-0618c52355b6
+  warehouse_id: 96e26e80fcd91931
+  vector_search_endpoint: llmops_course_vs_endpoint_diana
+  genie_space_id: "01f13c2131ef1c0591a5ef71ba5ff659"
+  usage_policy_id: 539b9b1e-c9d1-4177-be46-586a60a88660
   lakebase_project_id: null  # valuation-agent-lakebase
   experiment_name: /Shared/valuation-curator-course
 
 # Acceptance/Staging environment
 acc:
-  catalog: customs
-  schema: customs_valuation
+  catalog: mlops_dev
+  schema: dianasof
   volume: customs_valuation_files
   llm_endpoint: databricks-meta-llama-3-1-70b-instruct
   embedding_endpoint: databricks-gte-large-en
-  warehouse_id: 3a45f195a77d6027
-  vector_search_endpoint: llmops_course_vs_endpoint
-  genie_space_id: "01f12d0e51151a0f99caa978a12e068a"
-  usage_policy_id: d62bef91-8061-4678-842a-0618c52355b6
+  warehouse_id: 96e26e80fcd91931
+  vector_search_endpoint: llmops_course_vs_endpoint_diana
+  genie_space_id: "01f13c2131ef1c0591a5ef71ba5ff659"
+  usage_policy_id: 539b9b1e-c9d1-4177-be46-586a60a88660
   lakebase_project_id: null  # valuation-agent-lakebase
   experiment_name: /Shared/valuation-curator-course
 
 # Production environment
 prd:
-  catalog: customs
-  schema: customs_valuation
+  catalog: mlops_dev
+  schema: dianasof
   volume: customs_valuation_files
   llm_endpoint: databricks-meta-llama-3-1-70b-instruct
   embedding_endpoint: databricks-gte-large-en
-  warehouse_id: 3a45f195a77d6027
-  vector_search_endpoint: llmops_course_vs_endpoint
-  genie_space_id: "01f12d0e51151a0f99caa978a12e068a"
-  usage_policy_id: d62bef91-8061-4678-842a-0618c52355b6
+  warehouse_id: 96e26e80fcd91931
+  vector_search_endpoint: llmops_course_vs_endpoint_diana
+  genie_space_id: "01f13c2131ef1c0591a5ef71ba5ff659"
+  usage_policy_id: 539b9b1e-c9d1-4177-be46-586a60a88660
   lakebase_project_id: null  # valuation-agent-lakebase
   experiment_name: /Shared/valuation-curator-course
 
