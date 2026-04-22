@@ -50,9 +50,6 @@ class VectorSearchManager:
         )
         endpoint_exists = any(
             (ep.get("name") if isinstance(ep, dict) else getattr(ep, "name", None))
-            == self.endpoint_name(
-                ep.get("name") if isinstance(ep, dict) else getattr(ep, "name", None)
-            )
             == self.endpoint_name
             for ep in endpoints
         )
@@ -109,6 +106,13 @@ class VectorSearchManager:
     def sync_index(self) -> None:
         """Sync the vector search index with the source table."""
         index = self.create_or_get_index()
+        if hasattr(index, "wait_until_ready"):
+            logger.info(f"Waiting for vector search index to be ready: {self.index_name}")
+            try:
+                index.wait_until_ready()
+            except TypeError:
+                # Compatibility fallback for SDK versions with different signatures.
+                index.wait_until_ready(verbose=False)
         logger.info(f"Syncing vector search index: {self.index_name}")
         index.sync()
         logger.info("✓ Index sync triggered")

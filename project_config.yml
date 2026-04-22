@@ -1,23 +1,47 @@
 # Project Configuration for LLMOps Course
+# system_prompt: |
+#  You are a customs valuation agent responsible for detecting anomalies in customs
+#   declarations.
+
+#   Your role is to:
+#   1. Search for relevant customs valuation documents using the vector search tool based
+#      on the user's topic
+#   2. Query the Genie space for additional context and insights about the documents
+#   3. Generate a report in a professional audit style that:
+#       - Clearly identifies suspicious declarations and why they were flagged
+#       - References supporting evidence (fields, values, and source documents)
+#       - Recommends concrete next investigation actions
+
+#   Always ground your report in actual document findings from the tools
+#   available to you.
+
+#   If conversation history is provided, use it to maintain continuity
+#   with the user's previous requests — refer back to earlier topics,
+#   refine previous suggestions, and avoid repeating yourself.
+
 system_prompt: |
   You are a customs valuation agent responsible for detecting anomalies in customs
-  declarations.
+  declarations and answering user questions related to documents retrieved.
 
-  Your role is to:
-  1. Search for relevant customs valuation documents using the vector search tool based
-     on the user's topic
-  2. Query the Genie space for additional context and insights about the documents
-  3. Generate a report in a professional audit style that:
-      - Clearly identifies suspicious declarations and why they were flagged
-      - References supporting evidence (fields, values, and source documents)
-      - Recommends concrete next investigation actions
+  WORKFLOW:
+  1. Use the vector search tool to search for relevant documents based on the user's topic
+     and answer questions.
+  2. Use the Genie space tool to obtain additional context and insights about retrieved
+     documents (language, document ingestion date, invoice total, royalty percentage, ...)
+  3. Use the detect_anomalies Unity Catalog function to identify anomalies
+  4. Synthesize findings into a structured report
 
-  Always ground your report in actual document findings from the tools
-  available to you.
+  REPORTING REQUIREMENTS:
+  - Always cite specific evidence: case IDs, royalty percentages, invoice totals, ...
+  - In case the user asks for anomaly detection, highlight anomalies found by the UC
+    function and mention the anomaly_rule type
+  - Recommend concrete next investigation steps
+  - Use clear section headers: Summary, Findings, Anomalies Detected, Recommended Actions
+  - If a tool returns no results, inform the user and suggest refining the query
 
-  If conversation history is provided, use it to maintain continuity
-  with the user's previous requests — refer back to earlier topics,
-  refine previous suggestions, and avoid repeating yourself.
+  BOUNDARIES:
+  - Only answer questions related to customs valuation and document analysis
+  - For questions outside this scope, politely decline and refocus on your expertise
 
 # For the 3 environments, the idea would be that we used different catalogs and objects.
 # The objects have to be created separately for each environment.
@@ -25,43 +49,43 @@ system_prompt: |
 
 # Development environment
 dev:
-  catalog: customs
-  schema: customs_valuation
+  catalog: mlops_dev
+  schema: dianasof
   volume: customs_valuation_files
   llm_endpoint: databricks-llama-4-maverick
   embedding_endpoint: databricks-gte-large-en
-  warehouse_id: 3a45f195a77d6027
-  vector_search_endpoint: llmops_course_vs_endpoint
-  genie_space_id: "01f12d0e51151a0f99caa978a12e068a"
-  usage_policy_id: d62bef91-8061-4678-842a-0618c52355b6
+  warehouse_id: 96e26e80fcd91931
+  vector_search_endpoint: llmops_course_vs_endpoint_diana
+  genie_space_id: "01f13c2131ef1c0591a5ef71ba5ff659"
+  usage_policy_id: 539b9b1e-c9d1-4177-be46-586a60a88660
   lakebase_project_id: null  # valuation-agent-lakebase
   experiment_name: /Shared/valuation-curator-course
 
 # Acceptance/Staging environment
 acc:
-  catalog: customs
-  schema: customs_valuation
+  catalog: mlops_dev
+  schema: dianasof
   volume: customs_valuation_files
   llm_endpoint: databricks-meta-llama-3-1-70b-instruct
   embedding_endpoint: databricks-gte-large-en
-  warehouse_id: 3a45f195a77d6027
-  vector_search_endpoint: llmops_course_vs_endpoint
-  genie_space_id: "01f12d0e51151a0f99caa978a12e068a"
-  usage_policy_id: d62bef91-8061-4678-842a-0618c52355b6
+  warehouse_id: 96e26e80fcd91931
+  vector_search_endpoint: llmops_course_vs_endpoint_diana
+  genie_space_id: "01f13c2131ef1c0591a5ef71ba5ff659"
+  usage_policy_id: 539b9b1e-c9d1-4177-be46-586a60a88660
   lakebase_project_id: null  # valuation-agent-lakebase
   experiment_name: /Shared/valuation-curator-course
 
 # Production environment
 prd:
-  catalog: customs
-  schema: customs_valuation
+  catalog: mlops_dev
+  schema: dianasof
   volume: customs_valuation_files
   llm_endpoint: databricks-meta-llama-3-1-70b-instruct
   embedding_endpoint: databricks-gte-large-en
-  warehouse_id: 3a45f195a77d6027
-  vector_search_endpoint: llmops_course_vs_endpoint
-  genie_space_id: "01f12d0e51151a0f99caa978a12e068a"
-  usage_policy_id: d62bef91-8061-4678-842a-0618c52355b6
+  warehouse_id: 96e26e80fcd91931
+  vector_search_endpoint: llmops_course_vs_endpoint_diana
+  genie_space_id: "01f13c2131ef1c0591a5ef71ba5ff659"
+  usage_policy_id: 539b9b1e-c9d1-4177-be46-586a60a88660
   lakebase_project_id: null  # valuation-agent-lakebase
   experiment_name: /Shared/valuation-curator-course
 
